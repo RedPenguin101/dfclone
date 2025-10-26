@@ -6,13 +6,13 @@ Entity :: struct {
     type : EntityType,
     pos : V3i, // south west lower corner for multi-tile entities
     dim : V3i,
-    // TODO: Should this be an index?
-    current_order: ^Order,
+    current_order_idx: int,
+    action_ticker : f32,
 }
 
 add_entity :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
     l := len(es)
-    append(es, Entity{type, pos, {1,1,1}, nil})
+    append(es, Entity{type, pos, {1,1,1}, 0, 1.0})
     return l
 }
 

@@ -153,12 +153,33 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
      ********************/
 
     for &e in s.e {
-        if e.current_order == nil {
-            o := get_unassigned_order(&s.oq)
-            if o != nil {
-                e.current_order = o
+        if e.current_order_idx== 0 {
+            i, o := get_unassigned_order(&s.oq)
+            if i > 0 {
+                e.current_order_idx = i
                 o.status = .Assigned
             }
+        }
+
+        e.action_ticker -= time_delta
+        if e.action_ticker < 0 {
+            if e.current_order_idx > 0 {
+                o := s.oq.orders[e.current_order_idx]
+                target_pos := o.pos
+                if !are_adjacent(e.pos, target_pos) {
+                    dx := 0 if e.pos.x == target_pos.x else 1 if e.pos.x < target_pos.x else -1
+                    dy := 0 if e.pos.y == target_pos.y else 1 if e.pos.y < target_pos.y else -1
+                    e.pos += {dx,dy,0}
+                } else {
+                    if o.type == .Mine {
+                        mine_tile(m, target_pos)
+                        complete_order(&s.oq, e.current_order_idx)
+                        e.current_order_idx = 0
+                        get_map_tile(m, target_pos).order_idx = 0
+                    }
+                }
+            }
+            e.action_ticker += 1.0
         }
 
         /* SEC: Entity Render */
@@ -195,7 +216,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 
         if len(es) > 0 {
             e := es[0]
-            dbg(r, fmt.tprintf("%v %v, %v", e.type, e.pos, e.current_order), &idx)
+            dbg(r, fmt.tprintf("%v %v, %v", e.type, e.pos, e.current_order_idx), &idx)
         }
 
         oix := get_map_tile(m, s.hovered_tile).order_idx

@@ -44,3 +44,9 @@ get_map_tile :: proc(m:^Map, i:V3i) -> ^Tile {
     y_stride := dim.x
     return &m.tiles[i.z*z_stride + i.y*y_stride + i.x]
 }
+
+mine_tile :: proc(m:^Map, i:V3i) {
+    tile := get_map_tile(m, i)
+    assert(tile.content == .Filled)
+    tile.content = .Nothing
+}

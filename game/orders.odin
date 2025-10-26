@@ -43,11 +43,15 @@ get_order_at_position :: proc(q:OrderQueue, pos:V3i) -> (int, Order) {
     return 0, {}
 }
 
-get_unassigned_order :: proc(q:^OrderQueue) -> ^Order {
-    for &order in q.orders {
+get_unassigned_order :: proc(q:^OrderQueue) -> (int, ^Order) {
+    for &order, i in q.orders {
         if order.type != .Null && order.status == .Unassigned {
-            return &order
+            return i, &order
         }
     }
-    return nil
+    return 0, nil
+}
+
+complete_order :: proc(q:^OrderQueue, i:int) {
+    unordered_remove(&q.orders, i)
 }
