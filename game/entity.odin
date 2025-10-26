@@ -2,7 +2,31 @@ package game
 
 ENTITY_ACTION_FREQ :: 0.2
 
-EntityType :: enum { Null, Creature, Construction, Material }
+EntitySuperType :: enum { Null, Creature, Construction, Material }
+
+super_types := [EntityType]EntitySuperType {
+        .Null = .Null,
+        .Dwarf = .Creature,
+        .Stone = .Material,
+        .Wood = .Material,
+        .Tree = .Construction,
+}
+
+EntityType :: enum {
+    Null,
+    Dwarf,
+    Stone,
+    Wood,
+    Tree,
+}
+
+entity_dims :: proc(type:EntityType) -> V3i {
+    #partial switch type {
+    case .Null: return {}
+    case .Tree: return {1,1,3}
+    }
+    return {1,1,1}
+}
 
 Entity :: struct {
     type : EntityType,
@@ -14,7 +38,7 @@ Entity :: struct {
 
 add_entity :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
     l := len(es)
-    append(es, Entity{type, pos, {1,1,1}, 0, ENTITY_ACTION_FREQ})
+    append(es, Entity{type, pos, entity_dims(type), 0, ENTITY_ACTION_FREQ})
     return l
 }
 

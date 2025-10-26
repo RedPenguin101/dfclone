@@ -28,6 +28,9 @@ green := Color{0,1,0,1}
 blue  := Color{0,0,1,1}
 pink  := Color{ 1, 109.0/255, 194.0/255, 1 }
 
+stone_grey := Color{0.6,0.6,0.6,1}
+tree_brown := Color{0.7608, 0.4431, 0.1294, 1}
+
 /**************************
  * SEC: Gamestate structs *
  **************************/
@@ -103,7 +106,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         s.cam.center = {0,0,1}
         s.m = init_map({20, 20, 3})
         INIT_DUMMY_MAP(&s.m)
-        add_entity(&s.e, .Creature, {5, 10, 1})
+        add_entity(&s.e, .Null, {0,0,0})
+        add_entity(&s.e, .Dwarf, {5, 10, 1})
+        add_entity(&s.e, .Tree, {4, 4, 1})
         add_order(&s.oq, .Null, {})
         memory.initialized = true
     }
@@ -147,7 +152,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                 if tile.order_idx > 0 {
                     color = black
                 } else if tile.content == .Filled {
-                    color = pink
+                    color = stone_grey
                 } else {
                     color = green
                 }
@@ -161,7 +166,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
      ********************/
 
     for &e in s.e {
-        if e.type == .Creature {
+        super_type := super_types[e.type]
+        if super_type == .Creature {
             if e.current_order_idx== 0 {
                 i, o := get_unassigned_order(&s.oq)
                 if i > 0 {
@@ -185,7 +191,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                             complete_order(&s.oq, e.current_order_idx)
                             e.current_order_idx = 0
                             get_map_tile(m, target_pos).order_idx = 0
-                            add_entity(&s.e, .Material, target_pos)
+                            add_entity(&s.e, .Stone, target_pos)
                         }
                     }
                 }
@@ -196,12 +202,18 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         /* SEC: Entity Render */
         if e.pos.z == s.cam.center.z {
             switch e.type {
-            case .Null, .Construction: {}
-            case .Creature: {
+            case .Null: {}
+            case .Dwarf: {
                 fill_tile_with_color(r, e.pos, blue)
             }
-            case .Material: {
-                fill_tile_with_circle(r, e.pos, black)
+            case .Tree: {
+                fill_tile_with_color(r, e.pos, tree_brown)
+            }
+            case .Stone: {
+                fill_tile_with_circle(r, e.pos, stone_grey)
+            }
+            case .Wood: {
+                fill_tile_with_circle(r, e.pos, tree_brown)
             }
             }
         }

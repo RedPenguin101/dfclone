@@ -1,12 +1,13 @@
 package game
 
-OrderType :: enum { Null, Mine, }
+OrderType :: enum { Null, Mine, CutTree }
 OrderStatus :: enum { Unassigned, Assigned, Completed }
 
 Order :: struct {
     type : OrderType,
     status : OrderStatus,
     pos : V3i,
+    target_entity_idx: int,
     creation_time:f32,
 }
 
@@ -18,8 +19,11 @@ destroy_order_queue :: proc(q:^OrderQueue) {
     delete(q.orders)
 }
 
-add_order :: proc(q:^OrderQueue, type:OrderType, pos:V3i) -> int {
-    order := Order{type, .Unassigned, pos, 0.0}
+add_order :: proc(q:^OrderQueue, type:OrderType, pos:V3i, entity_idx:=0) -> int {
+    if type == .CutTree {
+        assert(entity_idx != 0)
+    }
+    order := Order{type, .Unassigned, pos, entity_idx, 0.0}
     existing, _ := get_order_at_position(q^, pos)
 
     if existing > 0 {
