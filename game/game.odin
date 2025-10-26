@@ -3,6 +3,8 @@ package game
 import c "../common"
 import "core:fmt"
 
+DBG :: fmt.println
+
 GameInput :: c.GameInput
 Renderer :: c.Renderer
 RenderRequest :: c.RenderRequest
@@ -10,6 +12,8 @@ Color :: c.Color
 Basis :: c.Basis
 V3i :: c.V3i
 V2 :: c.V2
+V2i :: c.V2i
+Rect :: c.Rect
 
 /******************
  * SEC: Constants *
@@ -47,6 +51,7 @@ GameState :: struct {
 
     cam:Camera,
     hovered_tile:V3i,
+    ui:UI,
 }
 
 GameMemory :: struct {
@@ -88,7 +93,9 @@ game_state_init :: proc(platform_api:c.PlatformApi) -> rawptr {
 game_state_destroy :: proc(memory:^GameMemory) {
     destroy_map(&memory.game_state.m)
     destroy_order_queue(&memory.game_state.oq)
+    tear_down_ui(&memory.game_state.ui)
     delete(memory.game_state.e)
+    delete(E_FREE_STACK)
     free(memory)
 }
 
@@ -110,6 +117,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         add_entity(&s.e, .Dwarf, {5, 10, 1})
         add_entity(&s.e, .Tree, {4, 4, 1})
         add_order(&s.oq, .Null, {})
+        setup_ui(&s.ui)
         memory.initialized = true
     }
 
@@ -131,9 +139,36 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         s.hovered_tile = v2_to_v3i((input.mouse.position-{map_start, map_start})/tile_size, s.cam.center.z)
 
         if pressed(input.mouse.lmb) {
-            tile := get_map_tile(m, s.hovered_tile)
-            if tile.content == .Filled {
-                tile.order_idx = add_order(&s.oq, .Mine, s.hovered_tile)
+            // TODO: Do this properly
+            SCREEN_WIDTH :: 800
+            SCREEN_HEIGHT :: 640
+
+            mouse_in_px_space := input.mouse.position
+            mouse_in_px_space.y /= 0.8
+            mouse_in_px_space.y -= 1.0
+            mouse_in_px_space.y *= -SCREEN_HEIGHT
+            mouse_in_px_space.x *= SCREEN_WIDTH
+
+            ui_captured := handle_ui_click(&s.ui, mouse_in_px_space)
+
+            if !ui_captured {
+                tile := get_map_tile(m, s.hovered_tile)
+                switch s.ui.selected_action {
+                case .None: {}
+                case .Mine: {
+                    if tile.content == .Filled {
+                        tile.order_idx = add_order(&s.oq, .Mine, s.hovered_tile)
+                    }
+                }
+                case .CutTrees: {
+                    es := get_entities_at_pos(&s.e, s.hovered_tile)
+                    for e_i in es {
+                        if s.e[e_i].type == .Tree {
+                            add_order(&s.oq, .CutTree, s.hovered_tile, e_i)
+                        }
+                    }
+                }
+                }
             }
         }
     }
@@ -187,11 +222,22 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                         e.pos += {dx,dy,0}
                     } else {
                         if o.type == .Mine {
+                            // TODO: Encapsulate order completion
                             mine_tile(m, target_pos)
                             complete_order(&s.oq, e.current_order_idx)
                             e.current_order_idx = 0
                             get_map_tile(m, target_pos).order_idx = 0
                             add_entity(&s.e, .Stone, target_pos)
+                        } else if o.type == .CutTree {
+                            tree := &s.e[o.target_entity_idx]
+                            assert(tree.type == .Tree)
+                            tree.deconstruction_percentage += 0.2
+                            if tree.deconstruction_percentage > 1 {
+                                complete_order(&s.oq, e.current_order_idx)
+                                e.current_order_idx = 0
+                                get_map_tile(m, target_pos).order_idx = 0
+                                deconstruct_entity(&s.e, o.target_entity_idx)
+                            }
                         }
                     }
                 }
@@ -225,13 +271,16 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
     {
         /* Draw mouse hover */
         fill_tile_with_color(r, s.hovered_tile, red)
+        r.current_basis = .ui
+        render_ui(r, s.ui)
+        r.current_basis = .screen
     }
 
 
     /*******************
      * SEC: Draw Debug *
      *******************/
-    {
+    if true {
         idx :f32= 0.0
         dbg :: proc(r:^Renderer, text:string, idx:^f32) {
             TEXT_HEIGHT :: 0.03
@@ -246,7 +295,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         es := get_entities_at_pos(&s.e, s.hovered_tile)
 
         if len(es) > 0 {
-            e := es[0]
+            e:= s.e[es[0]]
             dbg(r, fmt.tprintf("%v %v, %v", e.type, e.pos, e.current_order_idx), &idx)
         }
 
@@ -254,5 +303,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         if oix > 0 && len(s.oq.orders) > oix {
             dbg(r, fmt.tprintf("Order: %v", s.oq.orders[oix]), &idx)
         }
+
+        dbg(r, fmt.tprintf("Selected action: %v", s.ui.selected_action), &idx)
     }
 }

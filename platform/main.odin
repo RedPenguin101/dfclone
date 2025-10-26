@@ -162,6 +162,22 @@ main :: proc() {
     input : GameInput
 
     renderer : c.Renderer
+
+    screen_basis := c.Basis{
+        origin={0,-SCREEN_HEIGHT},
+        x={SCREEN_WIDTH, 0},
+        y={0,-SCREEN_WIDTH},
+    }
+
+    ui_basis := c.Basis{
+        origin={0,0},
+        x={1, 0},
+        y={0, 1},
+    }
+
+    renderer.bases[.screen] = screen_basis
+    renderer.bases[.ui] = ui_basis
+
     defer delete(renderer.queue)
 
     rl.SetTargetFPS(i32(target_fps))
@@ -224,13 +240,13 @@ main :: proc() {
          * Draw *
          ********/
 
-        DEBUG_DRAW :: true
+        DEBUG_DRAW :: false
 
         rl.BeginDrawing()
         rl.ClearBackground(rl.RAYWHITE)
 
         for &item in renderer.queue {
-            render(&item, font)
+            render(&item, font, renderer.bases[item.basis])
         }
 
         if DEBUG_DRAW {

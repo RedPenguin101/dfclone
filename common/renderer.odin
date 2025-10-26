@@ -47,7 +47,7 @@ RenderRect :: struct {
 }
 
 queue_rect :: proc(r:^Renderer, rect:Rect, color:Color) {
-    append(&r.queue, RenderRequest{.Rectangle, RenderRect{rect, color}})
+    append(&r.queue, RenderRequest{.Rectangle, RenderRect{rect, color}, r.current_basis})
 }
 
 RenderCircle :: struct {
@@ -58,7 +58,7 @@ RenderCircle :: struct {
 }
 
 queue_circle :: proc(r:^Renderer, center:V2, radius:f32, color:Color) {
-    append(&r.queue, RenderRequest{.Circle, RenderCircle{center, radius, color, false}})
+    append(&r.queue, RenderRequest{.Circle, RenderCircle{center, radius, color, false}, r.current_basis})
 }
 
 RenderText :: struct {
@@ -68,7 +68,7 @@ RenderText :: struct {
 }
 
 queue_text :: proc(r:^Renderer, text:string, pos:V2, color:Color) {
-    append(&r.queue, RenderRequest{.Text, RenderText{text, pos, color}})
+    append(&r.queue, RenderRequest{.Text, RenderText{text, pos, color}, r.current_basis})
 }
 
 RenderLine :: struct {
@@ -94,10 +94,15 @@ RenderRequest :: struct {
         RenderTriangle,
         RenderLine,
         RenderTexture,
-    }
+    },
+    basis:RenderBasisName
 }
 
+RenderBasisName :: enum {screen, ui}
+
 Renderer :: struct {
-    queue : [dynamic]RenderRequest
+    queue : [dynamic]RenderRequest,
+    current_basis : RenderBasisName,
+    bases : [RenderBasisName]Basis,
 }
 

@@ -33,13 +33,7 @@ rect_to_rl :: proc(r:c.Rect) -> rl.Rectangle {
 SCREEN_WIDTH :: 800
 SCREEN_HEIGHT :: 640
 
-screen_basis := c.Basis{
-    origin={0,-SCREEN_HEIGHT},
-    x={SCREEN_WIDTH, 0},
-    y={0,-SCREEN_WIDTH},
-}
-
-render :: proc(item:^c.RenderRequest, font:rl.Font) {
+render :: proc(item:^c.RenderRequest, font:rl.Font, basis:c.Basis) {
     switch item.type {
     case .Texture: {
         r := item.render.(c.RenderTexture)
@@ -56,7 +50,7 @@ render :: proc(item:^c.RenderRequest, font:rl.Font) {
         frame_x_start := r.sprite_idx * frame_width
         source_rec := rl.Rectangle{f32(frame_x_start),0,
                                    f32(frame_width), f32(r.tex.height)}
-        dest_rec := rect_to_rl(c.basis_xform_rect(screen_basis, r.dest))
+        dest_rec := rect_to_rl(c.basis_xform_rect(basis, r.dest))
         rl.DrawTexturePro(tex2, source_rec, dest_rec, {0,0}, 0, color_to_rl(r.tint))
     }
     case .TextureRotated: {
@@ -75,29 +69,29 @@ render :: proc(item:^c.RenderRequest, font:rl.Font) {
         frame_x_start := r.sprite_idx * frame_width
         source_rec := rl.Rectangle{f32(frame_x_start),0,
                                    f32(frame_width), f32(frame_height)}
-        dest_rec := rect_to_rl(c.basis_xform_rect(screen_basis, r.dest))
+        dest_rec := rect_to_rl(c.basis_xform_rect(basis, r.dest))
         // No idea why I need to divide this by 0.8 - something to do with the aspect ratio?
         sprite_center := rl.Vector2{f32(frame_width)/(0.8*2), f32(frame_height)/(0.8*2)}
         rl.DrawTexturePro(tex2, source_rec, dest_rec, sprite_center, r.rotation, color_to_rl(r.tint))
     }
     case .Line: {
         r := item.render.(c.RenderLine)
-        from := c.basis_xform_point(screen_basis, r.from)
-        to := c.basis_xform_point(screen_basis, r.to)
-        width := screen_basis.x.x * r.width
+        from := c.basis_xform_point(basis, r.from)
+        to := c.basis_xform_point(basis, r.to)
+        width := basis.x.x * r.width
         rl.DrawLineEx(from, to, width, color_to_rl(r.color))
     }
     case .Rectangle: {
         r := item.render.(c.RenderRect)
         rect := r.rect
-        r2 := rect_to_rl(c.basis_xform_rect(screen_basis, rect))
+        r2 := rect_to_rl(c.basis_xform_rect(basis, rect))
         rl.DrawRectangleRec(r2, color_to_rl(r.color))
     }
     case .Triangle: {
         r := item.render.(c.RenderTriangle)
-        v1 := c.basis_xform_point(screen_basis, r.a)
-        v2 := c.basis_xform_point(screen_basis, r.b)
-        v3 := c.basis_xform_point(screen_basis, r.c)
+        v1 := c.basis_xform_point(basis, r.a)
+        v2 := c.basis_xform_point(basis, r.b)
+        v3 := c.basis_xform_point(basis, r.c)
 
         orient2d :: proc(a,b,c:V2) -> f32 {
             det_left  := (a.y-c.y)*(b.x-c.x)
@@ -120,15 +114,15 @@ render :: proc(item:^c.RenderRequest, font:rl.Font) {
         v1 := V2{rect.x, rect.y}
         v2 := V2{rect.z, rect.y}
         v3 := V2{(rect.z+rect.x)/2, rect.w}
-        rl.DrawTriangle(c.basis_xform_point(screen_basis, v1),
-                        c.basis_xform_point(screen_basis, v2),
-                        c.basis_xform_point(screen_basis, v3),
+        rl.DrawTriangle(c.basis_xform_point(basis, v1),
+                        c.basis_xform_point(basis, v2),
+                        c.basis_xform_point(basis, v3),
                         color_to_rl(r.color))
     }
     case .Circle: {
         r := item.render.(c.RenderCircle)
-        center_px := c.basis_xform_point(screen_basis, r.center)
-        rad := screen_basis.x.x * r.radius
+        center_px := c.basis_xform_point(basis, r.center)
+        rad := basis.x.x * r.radius
         if r.lines {
             rl.DrawCircleLinesV(center_px, rad, color_to_rl(r.color))
         } else {
@@ -137,7 +131,7 @@ render :: proc(item:^c.RenderRequest, font:rl.Font) {
     }
     case .Text: {
         r := item.render.(c.RenderText)
-        pos := c.basis_xform_point(screen_basis, r.position)
+        pos := c.basis_xform_point(basis, r.position)
         cstr := strings.clone_to_cstring(r.text, context.temp_allocator)
         rl.DrawTextEx(font, cstr,
                       pos, 20, 2,

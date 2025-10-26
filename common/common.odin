@@ -2,6 +2,7 @@ package common
 
 V2    :: [2]f32
 V3    :: [3]f32
+V2i   :: [2]int
 V3i   :: [3]int
 Rect  :: [4]f32
 Color :: [4]f32
