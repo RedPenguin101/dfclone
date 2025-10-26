@@ -1,0 +1,6 @@
+Proper camera and panning
+creatures can't move over z levels, better path find
+trees, cut trees job, leaves wood
+UI layer, buttons for jobs
+click-drag selection for jobs
+simple sprite sheet

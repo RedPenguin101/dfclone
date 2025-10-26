@@ -1,6 +1,8 @@
 package game
 
-EntityType :: enum { Null, Creature, Contruction, Material }
+ENTITY_ACTION_FREQ :: 0.2
+
+EntityType :: enum { Null, Creature, Construction, Material }
 
 Entity :: struct {
     type : EntityType,
@@ -12,7 +14,7 @@ Entity :: struct {
 
 add_entity :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
     l := len(es)
-    append(es, Entity{type, pos, {1,1,1}, 0, 1.0})
+    append(es, Entity{type, pos, {1,1,1}, 0, ENTITY_ACTION_FREQ})
     return l
 }
 

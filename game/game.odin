@@ -62,6 +62,12 @@ fill_tile_with_color :: proc(r:^Renderer, pos:V3i, color:Color) {
     c.queue_rect(r, {x_s, y_s, x_s+tile_size, y_s+tile_size}, color)
 }
 
+fill_tile_with_circle :: proc(r:^Renderer, pos:V3i, color:Color) {
+    x_s := map_start+(f32(pos.x)+0.5)*tile_size
+    y_s := map_start+(f32(pos.y)+0.5)*tile_size
+    c.queue_circle(r, {x_s, y_s}, tile_size/2, color)
+}
+
 /**********************
  * Game API functions *
  **********************/
@@ -121,7 +127,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 
         if pressed(input.mouse.lmb) {
             tile := get_map_tile(m, s.hovered_tile)
-            tile.order_idx = add_order(&s.oq, .Mine, s.hovered_tile)
+            if tile.content == .Filled {
+                tile.order_idx = add_order(&s.oq, .Mine, s.hovered_tile)
+            }
         }
     }
 
@@ -153,38 +161,49 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
      ********************/
 
     for &e in s.e {
-        if e.current_order_idx== 0 {
-            i, o := get_unassigned_order(&s.oq)
-            if i > 0 {
-                e.current_order_idx = i
-                o.status = .Assigned
-            }
-        }
-
-        e.action_ticker -= time_delta
-        if e.action_ticker < 0 {
-            if e.current_order_idx > 0 {
-                o := s.oq.orders[e.current_order_idx]
-                target_pos := o.pos
-                if !are_adjacent(e.pos, target_pos) {
-                    dx := 0 if e.pos.x == target_pos.x else 1 if e.pos.x < target_pos.x else -1
-                    dy := 0 if e.pos.y == target_pos.y else 1 if e.pos.y < target_pos.y else -1
-                    e.pos += {dx,dy,0}
-                } else {
-                    if o.type == .Mine {
-                        mine_tile(m, target_pos)
-                        complete_order(&s.oq, e.current_order_idx)
-                        e.current_order_idx = 0
-                        get_map_tile(m, target_pos).order_idx = 0
-                    }
+        if e.type == .Creature {
+            if e.current_order_idx== 0 {
+                i, o := get_unassigned_order(&s.oq)
+                if i > 0 {
+                    e.current_order_idx = i
+                    o.status = .Assigned
                 }
             }
-            e.action_ticker += 1.0
+
+            e.action_ticker -= time_delta
+            if e.action_ticker < 0 {
+                if e.current_order_idx > 0 {
+                    o := s.oq.orders[e.current_order_idx]
+                    target_pos := o.pos
+                    if !are_adjacent(e.pos, target_pos) {
+                        dx := 0 if e.pos.x == target_pos.x else 1 if e.pos.x < target_pos.x else -1
+                        dy := 0 if e.pos.y == target_pos.y else 1 if e.pos.y < target_pos.y else -1
+                        e.pos += {dx,dy,0}
+                    } else {
+                        if o.type == .Mine {
+                            mine_tile(m, target_pos)
+                            complete_order(&s.oq, e.current_order_idx)
+                            e.current_order_idx = 0
+                            get_map_tile(m, target_pos).order_idx = 0
+                            add_entity(&s.e, .Material, target_pos)
+                        }
+                    }
+                }
+                e.action_ticker += ENTITY_ACTION_FREQ
+            }
         }
 
         /* SEC: Entity Render */
         if e.pos.z == s.cam.center.z {
-            fill_tile_with_color(r, e.pos, blue)
+            switch e.type {
+            case .Null, .Construction: {}
+            case .Creature: {
+                fill_tile_with_color(r, e.pos, blue)
+            }
+            case .Material: {
+                fill_tile_with_circle(r, e.pos, black)
+            }
+            }
         }
     }
 
@@ -220,7 +239,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         }
 
         oix := get_map_tile(m, s.hovered_tile).order_idx
-        if oix > 0 {
+        if oix > 0 && len(s.oq.orders) > oix {
             dbg(r, fmt.tprintf("Order: %v", s.oq.orders[oix]), &idx)
         }
     }

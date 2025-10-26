@@ -57,6 +57,10 @@ RenderCircle :: struct {
     lines: bool,
 }
 
+queue_circle :: proc(r:^Renderer, center:V2, radius:f32, color:Color) {
+    append(&r.queue, RenderRequest{.Circle, RenderCircle{center, radius, color, false}})
+}
+
 RenderText :: struct {
     text:string,
     position:V2,
