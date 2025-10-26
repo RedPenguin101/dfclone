@@ -140,7 +140,7 @@ render :: proc(item:^c.RenderRequest, font:rl.Font) {
         pos := c.basis_xform_point(screen_basis, r.position)
         cstr := strings.clone_to_cstring(r.text, context.temp_allocator)
         rl.DrawTextEx(font, cstr,
-                      pos, 20, 0,
+                      pos, 20, 2,
                       color_to_rl(r.color))
     }
     }

@@ -1,0 +1,53 @@
+package game
+
+OrderType :: enum { Null, Mine, }
+OrderStatus :: enum { Unassigned, Assigned, Completed }
+
+Order :: struct {
+    type : OrderType,
+    status : OrderStatus,
+    pos : V3i,
+    creation_time:f32,
+}
+
+OrderQueue :: struct {
+    orders : [dynamic]Order
+}
+
+destroy_order_queue :: proc(q:^OrderQueue) {
+    delete(q.orders)
+}
+
+add_order :: proc(q:^OrderQueue, type:OrderType, pos:V3i) -> int {
+    order := Order{type, .Unassigned, pos, 0.0}
+    existing, _ := get_order_at_position(q^, pos)
+
+    if existing > 0 {
+        // TODO: Should check if something else has been assigned this and cancel it if so
+        // replace the existing order
+        q.orders[existing] = order
+        return existing
+    }
+    l := len(q.orders)
+    append(&q.orders, order)
+    return l
+}
+
+get_order_at_position :: proc(q:OrderQueue, pos:V3i) -> (int, Order) {
+    // TODO: Probably should make more efficient lookup - hash?
+    for order, i in q.orders {
+        if order.pos == pos {
+            return i, order
+        }
+    }
+    return 0, {}
+}
+
+get_unassigned_order :: proc(q:^OrderQueue) -> ^Order {
+    for &order in q.orders {
+        if order.type != .Null && order.status == .Unassigned {
+            return &order
+        }
+    }
+    return nil
+}

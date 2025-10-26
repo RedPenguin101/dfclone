@@ -1,13 +1,11 @@
 package game
 
-import "../common"
-
-V3i :: common.V3i
-
 TileContent :: enum { Nothing, Filled, }
 
 Tile :: struct {
+    pos:V3i,
     content : TileContent,
+    order_idx:int,
 }
 
 Map :: struct {
@@ -31,6 +29,7 @@ INIT_DUMMY_MAP :: proc(m:^Map) {
         for x in 0..<m.dim.x {
             t := get_map_tile(m, {x,y,0})
             t.content = .Filled
+            t.pos = {x,y,1}
             if x > 10 {
                 t = get_map_tile(m, {x,y,1})
                 t.content = .Filled
