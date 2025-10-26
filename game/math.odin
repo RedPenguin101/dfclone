@@ -11,3 +11,15 @@ are_adjacent :: proc(a,b:V3i) -> bool {
 in_rect :: proc(v:V2,r:Rect) -> bool {
     return v.x > r.x && v.x <= r.z && v.y > r.y && v.y <= r.w
 }
+
+vec_min :: proc(v,w:V3i) -> V3i {
+    return {min(v.x,w.x),
+            min(v.y,w.y),
+            min(v.z,w.z)}
+}
+
+vec_max :: proc(v,w:V3i) -> V3i {
+    return {max(v.x,w.x),
+            max(v.y,w.y),
+            max(v.z,w.z)}
+}

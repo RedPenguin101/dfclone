@@ -58,6 +58,8 @@ GameState :: struct {
     ui:UI,
     interaction_mode:InteractionMode,
     im_building_selection:EntityType,
+    im_toggle:bool,
+    im_ref_pos:V3i,
 }
 
 GameMemory :: struct {
@@ -162,12 +164,25 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                 s.im_building_selection = EntityType(qual)
             }
             else {
-                tile := get_map_tile(m, s.hovered_tile)
                 switch s.interaction_mode {
                 case .Map: {}
                 case .Mine: {
-                    if tile.content == .Filled {
-                        tile.order_idx = add_order(&s.oq, .Mine, s.hovered_tile)
+                    if !s.im_toggle {
+                        s.im_toggle = true
+                        s.im_ref_pos = s.hovered_tile
+                    } else {
+                        v_min := vec_min(s.im_ref_pos, s.hovered_tile)
+                        v_max := vec_max(s.im_ref_pos, s.hovered_tile)
+                        assert(v_min.z==v_max.z)
+                        for x in v_min.x..=v_max.x {
+                            for y in v_min.y..=v_max.y {
+                                tile := get_map_tile(m, {x,y,v_min.z})
+                                if tile.content == .Filled {
+                                    tile.order_idx = add_order(&s.oq, .Mine, {x,y,v_min.z})
+                                }
+                            }
+                        }
+                        s.im_toggle = false
                     }
                 }
                 case .CutTrees: {
@@ -309,7 +324,26 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
     {
         /* Draw mouse hover */
         switch s.interaction_mode {
-        case .Map, .CutTrees, .Mine: fill_tile_with_color(r, s.hovered_tile, red)
+        case .Map, .CutTrees: fill_tile_with_color(r, s.hovered_tile, red)
+        case .Mine: {
+            if s.im_toggle {
+                {
+                    v_min := vec_min(s.im_ref_pos, s.hovered_tile)
+                    v_max := vec_max(s.im_ref_pos, s.hovered_tile)
+                    assert(v_min.z==v_max.z)
+                    for x in v_min.x..=v_max.x {
+                        for y in v_min.y..=v_max.y {
+                            tile := get_map_tile(m, {x,y,v_min.z})
+                            if tile.content == .Filled {
+                                fill_tile_with_color(r, {x,y,v_min.z}, blue)
+                            }
+                        }
+                    }
+                }
+            } else {
+                fill_tile_with_color(r, s.hovered_tile, red)
+            }
+        }
         case .Build: {
             if s.im_building_selection != .Null {
                 e_def := ENTITY_TABLE[s.im_building_selection]

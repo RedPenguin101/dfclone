@@ -1,6 +1,4 @@
-build workshop
 Proper camera and panning
 creatures can't move over z levels, better path find
-click-drag selection for jobs
 simple sprite sheet
 Change UI rendering to have CM basis
