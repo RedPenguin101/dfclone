@@ -1,0 +1,38 @@
+A dwarf fortress clone as a holiday project
+-------------------------------------------
+
+A tile based, indirect action settlement builder game in the style of
+dwarf fortress. Just the mechanics, not the personality systems
+(though should leave room for expansion in that direction).
+
+TERRAIN: Initially start with a single Z-level. Random generation of
+river and mountain within certain parameters.
+
+BUILDINGS: There are two buildings: A workshop which can produce beds
+and tables, and a farm plot which produces food.
+
+STOCKPILES can be created, which can be limited to store entities of
+particular types.
+
+An ORDER QUEUE system with order types: Mine, Cut trees, Build
+building, work in building. Mining produces stone which can be used in
+workshops.
+
+Start with 7 dwarves. Dwarves have inventories, and can carry tools.
+Dwarves can pick up orders from the order queue system. Dwarves have
+sleep and food needs, and will vary their behavior according to those
+needs.
+
+Other stuff:
+
+- pathfinding
+- graphics: hand drawn tiles, a mouse based UI
+
+Iteration plan:
+1: A handdrawn 20x20 fort with 1 dwarf. An order to mine out a single square can be issued from a menu and the dwarf
+   will carry out the order
+X: Trees and chop trees order
+X: Workshop and build bed
+X: Farm
+X: Stockpile
+
