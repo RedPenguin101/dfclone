@@ -1,18 +1,16 @@
 package game
 
-// TODO: rename to MENU
-
 import c "../common"
 
-UIButtonBoxName :: enum { None, InteractionModeSelector, BuildingSelector }
+MenuName :: enum { Null, InteractionModeSelector, BuildingSelector }
 
 UI :: struct {
-    boxes : [UIButtonBoxName]UIButtonBox,
+    boxes : [MenuName]Menu,
 }
 
 UIButtonState :: enum { None, Depressed,}
 
-UIButtonBox :: struct {
+Menu :: struct {
     rect:Rect,
     size:V2i,
     active:bool,
@@ -24,8 +22,8 @@ UIButton :: struct {
     back_reference:int,
     label:string,
     state:UIButtonState,
-    box_name:UIButtonBoxName,
-    sub_menu:UIButtonBoxName,
+    menu_name:MenuName,
+    sub_menu:MenuName,
 }
 
 setup_ui :: proc(ui:^UI) {
@@ -43,21 +41,21 @@ setup_ui :: proc(ui:^UI) {
             back_reference = int(InteractionMode.Mine),
             label = "M",
             state = .None,
-            box_name = .InteractionModeSelector,
+            menu_name = .InteractionModeSelector,
         }
         cut_trees_button := UIButton{
             rect = Rect{50,0,100,50}+margins,
             back_reference = int(InteractionMode.CutTrees),
             label = "T",
             state = .None,
-            box_name = .InteractionModeSelector,
+            menu_name = .InteractionModeSelector,
         }
         build_button := UIButton{
             rect = Rect{100,0,150,50}+margins,
             back_reference = int(InteractionMode.Build),
             label = "B",
             state = .None,
-            box_name = .InteractionModeSelector,
+            menu_name = .InteractionModeSelector,
             sub_menu = .BuildingSelector,
         }
         append(&os.buttons, mining_button)
@@ -78,7 +76,7 @@ setup_ui :: proc(ui:^UI) {
             back_reference = int(EntityType.Workshop),
             label = "Workshop",
             state = .None,
-            box_name = .BuildingSelector,
+            menu_name = .BuildingSelector,
         }
         append(&bs.buttons, workshop_button)
     }
@@ -111,26 +109,26 @@ render_ui :: proc(r:^Renderer, ui:UI) {
 }
 
 handle_button_press :: proc(ui:^UI, btn:^UIButton) -> (InteractionMode, int){
-    switch btn.box_name {
-    case .None: {}
+    switch btn.menu_name {
+    case .Null: {}
     case .InteractionModeSelector: {
         if btn.state == .Depressed {
             btn.state = .None
-            if btn.sub_menu != .None {
+            if btn.sub_menu != .Null {
                 ui.boxes[btn.sub_menu].active = false
             }
             return .Map, 0
         } else {
-            for &other_b in ui.boxes[btn.box_name].buttons {
+            for &other_b in ui.boxes[btn.menu_name].buttons {
                 if other_b.state == .Depressed && other_b.back_reference != btn.back_reference {
                     other_b.state = .None
-                    if other_b.sub_menu != .None {
+                    if other_b.sub_menu != .Null {
                         ui.boxes[other_b.sub_menu].active = false
                     }
                 }
             }
             btn.state = .Depressed
-            if btn.sub_menu != .None {
+            if btn.sub_menu != .Null {
                 ui.boxes[btn.sub_menu].active = true
             }
             return InteractionMode(btn.back_reference), 0
