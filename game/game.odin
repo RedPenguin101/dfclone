@@ -27,10 +27,18 @@ pink  := Color{ 1, 109.0/255, 194.0/255, 1 }
  * SEC: Gamestate structs *
  **************************/
 
+Camera :: struct {
+    center : V3i,
+    dims   : V3i,
+}
+
 GameState :: struct {
+    m:Map,
+    cam:Camera,
 }
 
 GameMemory :: struct {
+    game_state : GameState,
     initialized : bool,
     platform : c.PlatformApi
 }
@@ -50,24 +58,32 @@ game_state_init :: proc(platform_api:c.PlatformApi) -> rawptr {
 
 @(export)
 game_state_destroy :: proc(memory:^GameMemory) {
+    destroy_map(&memory.game_state.m)
     free(memory)
 }
 
 
 @(export)
 game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Renderer) {
-    /**************
-     * LOOP LOCAL *
-     **************/
 
     /*****************
      * SEC: MEM INIT *
      *****************/
 
+    s := &memory.game_state
+
     if !memory.initialized {
+        s.cam.center = {0,0,1}
+        s.m = init_map({20, 20, 3})
+        INIT_DUMMY_MAP(&s.m)
         memory.initialized = true
     }
 
+    /**************
+     * LOOP LOCAL *
+     **************/
+
+    m := &s.m
 
     /*********************
      * SEC: HANDLE INPUT *
@@ -80,8 +96,27 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
     }
 
     /*******************
-     * SEC: background *
+     * SEC: DRAW MAP *
      *******************/
+
+    {
+        z_level := s.cam.center.z
+
+        for y in 0..<m.dim.y {
+            for x in 0..<m.dim.x {
+                tile := get_map_tile(m, {x,y,z_level})
+                map_start :: 0.3
+                tile_size :: 0.02
+                x_s := map_start+f32(x)*tile_size
+                y_s := map_start+f32(y)*tile_size
+                if tile.content == .Filled {
+                    c.queue_rect(r, {x_s, y_s, x_s+tile_size, y_s+tile_size}, pink)
+                } else {
+                    c.queue_rect(r, {x_s, y_s, x_s+tile_size, y_s+tile_size}, green)
+                }
+            }
+        }
+    }
 
     /********************
      * SEC: Entity Loop *
@@ -91,6 +126,5 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
      * SEC: Draw UI *
      ****************/
     {
-        c.queue_text(r, "Hello, sailor!", {0.5, 0.5}, pink)
     }
 }

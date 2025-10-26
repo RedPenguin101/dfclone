@@ -46,6 +46,10 @@ RenderRect :: struct {
     color : Color,
 }
 
+queue_rect :: proc(r:^Renderer, rect:Rect, color:Color) {
+    append(&r.queue, RenderRequest{.Rectangle, RenderRect{rect, color}})
+}
+
 RenderCircle :: struct {
     center : V2,
     radius : f32,
@@ -57,6 +61,10 @@ RenderText :: struct {
     text:string,
     position:V2,
     color:Color,
+}
+
+queue_text :: proc(r:^Renderer, text:string, pos:V2, color:Color) {
+    append(&r.queue, RenderRequest{.Text, RenderText{text, pos, color}})
 }
 
 RenderLine :: struct {
@@ -89,6 +97,3 @@ Renderer :: struct {
     queue : [dynamic]RenderRequest
 }
 
-queue_text :: proc(r:^Renderer, text:string, pos:V2, color:Color) {
-    append(&r.queue, RenderRequest{.Text, RenderText{text, pos, color}})
-}
