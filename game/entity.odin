@@ -4,20 +4,29 @@ ENTITY_ACTION_FREQ :: 0.2
 
 EntitySuperType :: enum { Null, Creature, Construction, Material }
 
-super_types := [EntityType]EntitySuperType {
-        .Null = .Null,
-        .Dwarf = .Creature,
-        .Stone = .Material,
-        .Wood = .Material,
-        .Tree = .Construction,
-}
-
 EntityType :: enum {
     Null,
     Dwarf,
     Stone,
     Wood,
     Tree,
+    Workshop,
+}
+
+EntityTableEntry :: struct {
+    dims:V3i,
+    buildable:bool,
+    super_type:EntitySuperType,
+    action_frequency:f32,
+}
+
+ENTITY_TABLE := [EntityType]EntityTableEntry {
+        .Null =     { {},      false, .Null,     0 },
+        .Dwarf =    { {1,1,1}, false, .Creature, 0.2},
+        .Stone =    { {1,1,1}, false, .Material, 0},
+        .Wood =     { {1,1,1}, false, .Material, 0},
+        .Tree =     { {1,1,1}, false, .Construction, 0},
+        .Workshop = { {2,2,1}, true,  .Construction, 0},
 }
 
 entity_dims :: proc(type:EntityType) -> V3i {

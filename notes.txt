@@ -35,4 +35,3 @@ X: Trees and chop trees order
 X: Workshop and build bed
 X: Farm
 X: Stockpile
-

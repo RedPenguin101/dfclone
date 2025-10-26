@@ -44,6 +44,10 @@ Camera :: struct {
     dims   : V3i,
 }
 
+InteractionMode :: enum {
+    Map, Mine, CutTrees, Build,
+}
+
 GameState :: struct {
     m:Map,
     e:[dynamic]Entity,
@@ -52,6 +56,8 @@ GameState :: struct {
     cam:Camera,
     hovered_tile:V3i,
     ui:UI,
+    interaction_mode:InteractionMode,
+    im_building_selection:EntityType,
 }
 
 GameMemory :: struct {
@@ -149,12 +155,16 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
             mouse_in_px_space.y *= -SCREEN_HEIGHT
             mouse_in_px_space.x *= SCREEN_WIDTH
 
-            ui_captured := handle_ui_click(&s.ui, mouse_in_px_space)
+            ui_captured, im, qual := handle_ui_click(&s.ui, mouse_in_px_space)
 
-            if !ui_captured {
+            if ui_captured {
+                s.interaction_mode = im
+                s.im_building_selection = EntityType(qual)
+            }
+            else {
                 tile := get_map_tile(m, s.hovered_tile)
-                switch s.ui.selected_action {
-                case .None: {}
+                switch s.interaction_mode {
+                case .Map: {}
                 case .Mine: {
                     if tile.content == .Filled {
                         tile.order_idx = add_order(&s.oq, .Mine, s.hovered_tile)
@@ -166,6 +176,16 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                         if s.e[e_i].type == .Tree {
                             add_order(&s.oq, .CutTree, s.hovered_tile, e_i)
                         }
+                    }
+                }
+                case .Build: {
+                    if s.im_building_selection != .Null {
+                        idx := add_entity(&s.e, s.im_building_selection, s.hovered_tile)
+                        s.e[idx].deconstruction_percentage = 1
+                        add_order(&s.oq, .Construct, s.hovered_tile, idx)
+                        s.interaction_mode = .Map
+                        s.im_building_selection = .Null
+                        reset_ui(&s.ui)
                     }
                 }
                 }
@@ -201,7 +221,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
      ********************/
 
     for &e in s.e {
-        super_type := super_types[e.type]
+        super_type := ENTITY_TABLE[e.type].super_type
         if super_type == .Creature {
             if e.current_order_idx== 0 {
                 i, o := get_unassigned_order(&s.oq)
@@ -238,6 +258,15 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                                 get_map_tile(m, target_pos).order_idx = 0
                                 deconstruct_entity(&s.e, o.target_entity_idx)
                             }
+                        } else if o.type == .Construct {
+                            building := &s.e[o.target_entity_idx]
+                            building.deconstruction_percentage -= 0.2
+                            if building.deconstruction_percentage < 0 {
+                                building.deconstruction_percentage = 0
+                                complete_order(&s.oq, e.current_order_idx)
+                                e.current_order_idx = 0
+                                get_map_tile(m, target_pos).order_idx = 0
+                            }
                         }
                     }
                 }
@@ -261,6 +290,15 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
             case .Wood: {
                 fill_tile_with_circle(r, e.pos, tree_brown)
             }
+            case .Workshop: {
+                e_def := ENTITY_TABLE[.Workshop]
+                for x in 0..<e_def.dims.x {
+                    for y in 0..<e_def.dims.y {
+                        fill_tile_with_color(r, e.pos+{x,y,0}, black)
+                    }
+                }
+
+            }
             }
         }
     }
@@ -270,7 +308,21 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
      ****************/
     {
         /* Draw mouse hover */
-        fill_tile_with_color(r, s.hovered_tile, red)
+        switch s.interaction_mode {
+        case .Map, .CutTrees, .Mine: fill_tile_with_color(r, s.hovered_tile, red)
+        case .Build: {
+            if s.im_building_selection != .Null {
+                e_def := ENTITY_TABLE[s.im_building_selection]
+                for x in 0..<e_def.dims.x {
+                    for y in 0..<e_def.dims.y {
+                        fill_tile_with_color(r, s.hovered_tile+{x,y,0}, red)
+                    }
+                }
+            }
+        }
+
+        }
+
         r.current_basis = .ui
         render_ui(r, s.ui)
         r.current_basis = .screen
@@ -304,6 +356,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
             dbg(r, fmt.tprintf("Order: %v", s.oq.orders[oix]), &idx)
         }
 
-        dbg(r, fmt.tprintf("Selected action: %v", s.ui.selected_action), &idx)
+        dbg(r, fmt.tprintf("IM: %v", s.interaction_mode), &idx)
+        dbg(r, fmt.tprintf("IM: %v", s.im_building_selection), &idx)
     }
 }
