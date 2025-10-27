@@ -79,6 +79,13 @@ unload_texture :: proc(t:c.Texture) {
     rl.UnloadTexture(tex)
 }
 
+load_font :: proc(path:string) -> rawptr {
+    path_c := strings.clone_to_cstring(path, context.temp_allocator)
+    font_p := new(rl.Font)
+    font_p^ = rl.LoadFontEx(path_c, 20, nil, 0)
+    return rawptr(font_p)
+}
+
 /*******************
  * Library Loading *
  *******************/
@@ -147,7 +154,9 @@ main :: proc() {
         load_texture = load_texture,
         load_sprite = load_sprite,
         unload_texture = unload_texture,
+        load_font = load_font,
     }
+
     game_memory := game_api.init(platform_api)
     defer game_api.destroy(game_memory)
     defer dynlib.unload_library(game_api.lib)
@@ -183,9 +192,6 @@ main :: proc() {
     rl.SetTargetFPS(i32(target_fps))
     refresh_hz := int(rl.GetMonitorRefreshRate(rl.GetCurrentMonitor()))
     defer rl.CloseWindow()
-
-    font := rl.GetFontDefault()
-    defer rl.UnloadFont(font)
 
     rl.SetExitKey(.KEY_NULL)
 
@@ -246,7 +252,7 @@ main :: proc() {
         rl.ClearBackground(rl.RAYWHITE)
 
         for &item in renderer.queue {
-            render(&item, font, renderer.bases[item.basis])
+            render(&item, renderer.bases[item.basis])
         }
 
         if DEBUG_DRAW {

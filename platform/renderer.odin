@@ -33,7 +33,7 @@ rect_to_rl :: proc(r:c.Rect) -> rl.Rectangle {
 SCREEN_WIDTH :: 800
 SCREEN_HEIGHT :: 640
 
-render :: proc(item:^c.RenderRequest, font:rl.Font, basis:c.Basis) {
+render :: proc(item:^c.RenderRequest, basis:c.Basis) {
     switch item.type {
     case .Texture: {
         r := item.render.(c.RenderTexture)
@@ -131,6 +131,8 @@ render :: proc(item:^c.RenderRequest, font:rl.Font, basis:c.Basis) {
     }
     case .Text: {
         r := item.render.(c.RenderText)
+        font : rl.Font
+        font = (cast(^rl.Font)r.font)^
         pos := c.basis_xform_point(basis, r.rect.xy)
         max_char_per_line := max_characters_in_space(r.text, font, 20, 2, r.rect.z-r.rect.x)
         line_count := int(f32(len(r.text)) / f32(max_char_per_line))+1

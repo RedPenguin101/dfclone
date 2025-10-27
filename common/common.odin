@@ -11,12 +11,14 @@ PlatformReadFileFn   :: proc(string)-> []u8
 PlatformLoadTexFn    :: proc([]Color, int, int)-> Texture
 PlatformUnloadTexFn  :: proc(Texture)
 PlatformLoadSpriteFn :: proc(path:string, lines:int, frames_per_line:int) -> Texture
+PlatformLoadFontFn :: proc(path:string) -> rawptr
 
 PlatformApi :: struct {
     read_file :      PlatformReadFileFn,
     load_texture :   PlatformLoadTexFn,
     load_sprite :    PlatformLoadSpriteFn,
     unload_texture : PlatformUnloadTexFn,
+    load_font :      PlatformLoadFontFn,
 }
 
 ButtonState :: struct {

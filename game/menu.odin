@@ -126,17 +126,27 @@ reset_menus :: proc(menus:^MenuState) {
     }
 }
 
-render_menus :: proc(r:^Renderer, menus:MenuState) {
+render_menus :: proc(r:^Renderer, menus:MenuState, font:rawptr) {
+    background :: Color{0.81, 0.81, 0.81, 1}
+    dark_border :: Color{0.51, 0.51, 0.51, 1}
+    light_border :: Color{1,1,1,1}
     for box in menus.boxes {
         if !box.active do continue
-        c.queue_rect(r, box.rect, pink)
+        c.queue_rect(r, box.rect, background)
         for text_el in box.text_elements {
-            c.queue_rect(r, text_el.rect, blue)
-            c.queue_text(r, text_el.text, text_el.rect, white)
+            c.queue_text(r, text_el.text, font, text_el.rect, black)
         }
         for btn in box.buttons {
-            c.queue_rect(r, btn.rect, blue if btn.state == .None else red)
-            c.queue_text(r, btn.label, btn.rect+{15,15,0,0}, white)
+            if btn.state == .None {
+                c.queue_rect(r, btn.rect, dark_border)
+                c.queue_rect(r, btn.rect+{0,0,-2,-2}, light_border)
+                c.queue_rect(r, btn.rect+{2,2,-2,-2}, background)
+            } else {
+                c.queue_rect(r, btn.rect, light_border)
+                c.queue_rect(r, btn.rect+{0,0,-2,-2}, dark_border)
+                c.queue_rect(r, btn.rect+{2,2,-2,-2}, background)
+            }
+            c.queue_text(r, btn.label, font, btn.rect+{15,15,0,0}, black)
         }
     }
 }

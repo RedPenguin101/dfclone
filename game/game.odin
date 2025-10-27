@@ -66,7 +66,8 @@ GameState :: struct {
 GameMemory :: struct {
     game_state : GameState,
     initialized : bool,
-    platform : c.PlatformApi
+    platform : c.PlatformApi,
+    font: rawptr,
 }
 
 /******************
@@ -119,6 +120,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
     s := &memory.game_state
 
     if !memory.initialized {
+        memory.font = memory.platform.load_font("./assets/fonts/InterVariable.ttf")
+
         s.cam.center = {0,0,1}
         s.m = init_map({20, 20, 3})
         INIT_DUMMY_MAP(&s.m)
@@ -373,7 +376,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         }
 
         r.current_basis = .menus
-        render_menus(r, s.menus)
+        render_menus(r, s.menus, memory.font)
         r.current_basis = .screen
     }
 
@@ -383,29 +386,29 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
      *******************/
     if false {
         idx :f32= 0.0
-        dbg :: proc(r:^Renderer, text:string, idx:^f32) {
+        dbg :: proc(r:^Renderer, text:string, font:rawptr, idx:^f32) {
             TEXT_HEIGHT :: 0.03
             TEXT_START :: 0.28
-            c.queue_text(r, text, {0.02, TEXT_START-(idx^*TEXT_HEIGHT), 1, 0.3}, white)
+            c.queue_text(r, text, font, {0.02, TEXT_START-(idx^*TEXT_HEIGHT), 1, 0.3}, white)
             idx^+=1
         }
         c.queue_rect(r, {0,0,1, 0.3}, blue)
-        dbg(r, fmt.tprintf("Hov Tile: %d", s.hovered_tile), &idx)
-        dbg(r, fmt.tprintf("OQ Len: %v", len(s.oq.orders)), &idx)
+        dbg(r, fmt.tprintf("Hov Tile: %d", s.hovered_tile), memory.font, &idx)
+        dbg(r, fmt.tprintf("OQ Len: %v", len(s.oq.orders)), memory.font, &idx)
 
         es := get_entities_at_pos(&s.e, s.hovered_tile)
 
         if len(es) > 0 {
             e:= s.e[es[0]]
-            dbg(r, fmt.tprintf("%v %v, %v", e.type, e.pos, e.current_order_idx), &idx)
+            dbg(r, fmt.tprintf("%v %v, %v", e.type, e.pos, e.current_order_idx), memory.font, &idx)
         }
 
         oix := get_map_tile(m, s.hovered_tile).order_idx
         if oix > 0 && len(s.oq.orders) > oix {
-            dbg(r, fmt.tprintf("Order: %v", s.oq.orders[oix]), &idx)
+            dbg(r, fmt.tprintf("Order: %v", s.oq.orders[oix]), memory.font, &idx)
         }
 
-        dbg(r, fmt.tprintf("IM: %v", s.interaction_mode), &idx)
-        dbg(r, fmt.tprintf("IM: %v", s.im_building_selection), &idx)
+        dbg(r, fmt.tprintf("IM: %v", s.interaction_mode), memory.font, &idx)
+        dbg(r, fmt.tprintf("IM: %v", s.im_building_selection), memory.font, &idx)
     }
 }
