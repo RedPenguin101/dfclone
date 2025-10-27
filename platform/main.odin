@@ -2,6 +2,7 @@ package platform
 
 import c "../common"
 import "core:os"
+import "core:os/os2"
 import "core:strings"
 import "core:dynlib"
 import "core:mem"
@@ -97,8 +98,11 @@ GameAPI :: struct {
     lib: dynlib.Library,
 }
 
-load_game_library :: proc() -> GameAPI {
-    lib, lib_ok := dynlib.load_library("game.dll")
+LIB_NAME :: "game.dll"
+LIB_LOCK_NAME :: "lock.tmp"
+
+load_game_library :: proc(api_version:int) -> GameAPI {
+    lib, lib_ok := dynlib.load_library(fmt.tprintf("game_{0}.dll", api_version))
     if !lib_ok do panic("dynload fail")
 
     api := GameAPI {
@@ -148,7 +152,15 @@ main :: proc() {
      * Game API Setup *
      ******************/
 
-    game_api := load_game_library()
+    lib_write_time, lwt_err := os.last_write_time_by_name(LIB_NAME)
+    if lwt_err != nil {
+        panic("Couldn't get last write time of file")
+    }
+
+    api_version := 0
+    copy_err := os2.copy_file(fmt.tprintf("game_{0}.dll", api_version), LIB_NAME)
+    assert(copy_err == nil)
+    game_api := load_game_library(api_version)
     platform_api := c.PlatformApi{
         read_file = debug_read_entire_file,
         load_texture = load_texture,
@@ -196,6 +208,25 @@ main :: proc() {
     rl.SetExitKey(.KEY_NULL)
 
     for running && !rl.WindowShouldClose() {
+
+        if reload_timer > 2*refresh_hz && !os.is_file(LIB_LOCK_NAME) {
+            new_lib_write_time, err := os.last_write_time_by_name(LIB_NAME)
+            if err != nil {
+                panic("Couldn't get new write time")
+            }
+            if new_lib_write_time > lib_write_time {
+                api_version += 1
+                dynlib.unload_library(game_api.lib)
+                copy_err = os2.copy_file(fmt.tprintf("game_{0}.dll", api_version), LIB_NAME)
+                assert(copy_err == nil)
+                fmt.println("Loading API version", api_version)
+                game_api = load_game_library(api_version)
+                lib_write_time = new_lib_write_time
+            }
+            reload_timer = 0
+        }
+        reload_timer += 1
+
         /****************
          * update input *
          ****************/
@@ -235,12 +266,6 @@ main :: proc() {
          ***************/
 
         game_api.update(target_frame_length, game_memory, input, &renderer)
-        if reload_timer > 2*refresh_hz {
-            dynlib.unload_library(game_api.lib)
-            game_api = load_game_library()
-            reload_timer = 0
-        }
-        reload_timer += 1
 
         /********
          * Draw *

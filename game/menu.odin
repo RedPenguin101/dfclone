@@ -46,21 +46,21 @@ setup_menus :: proc(menus:^MenuState) {
         mining_button := Button{
             rect = Rect{0,0,50,50}+margins,
             back_reference = int(InteractionMode.Mine),
-            label = "M",
+            label = fmt.tprint("M"),
             state = .None,
             menu_name = .InteractionModeSelector,
         }
         cut_trees_button := Button{
             rect = Rect{50,0,100,50}+margins,
             back_reference = int(InteractionMode.CutTrees),
-            label = "T",
+            label = fmt.tprint("T"),
             state = .None,
             menu_name = .InteractionModeSelector,
         }
         build_button := Button{
             rect = Rect{100,0,150,50}+margins,
             back_reference = int(InteractionMode.Build),
-            label = "B",
+            label = fmt.tprint("B"),
             state = .None,
             menu_name = .InteractionModeSelector,
             sub_menu = .BuildingSelector,
@@ -79,7 +79,7 @@ setup_menus :: proc(menus:^MenuState) {
         workshop_button := Button{
             rect = Rect{100,50,300,100}+margins,
             back_reference = int(EntityType.Workshop),
-            label = "Workshop",
+            label = fmt.tprint("Workshop"),
             state = .None,
             menu_name = .BuildingSelector,
         }
@@ -94,18 +94,11 @@ setup_menus :: proc(menus:^MenuState) {
         close := Button {
             rect = Rect{500,50,800,100}+margins,
             back_reference = CLOSE,
-            label = "Close",
+            label = fmt.tprint("Close"),
             state = .None,
             menu_name = .EntityMenu,
         }
         append(&em.buttons, close)
-        te := TextElement {
-            rect = Rect{500, 100, 800, 250}+margins,
-            text = "This is a test of the menu text rendering",
-            menu_name = .EntityMenu,
-        }
-        append(&em.text_elements, te)
-
     }
 }
 
