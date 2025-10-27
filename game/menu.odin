@@ -1,6 +1,7 @@
 package game
 
 import c "../common"
+import "core:fmt"
 
 MenuName :: enum { Null, InteractionModeSelector, BuildingSelector, EntityMenu }
 
@@ -35,13 +36,12 @@ Button :: struct {
 
 setup_menus :: proc(menus:^MenuState) {
     // TODO: All this stuff should be in centimeters, as should the basis
+    margins := Rect{2,2,-2,-2}
     {
         os := &menus.boxes[.InteractionModeSelector]
         os.rect = {0,0,800,50}
         os.size = {6, 1}
         os.active = true
-
-        margins := Rect{2,2,-2,-2}
 
         mining_button := Button{
             rect = Rect{0,0,50,50}+margins,
@@ -76,8 +76,6 @@ setup_menus :: proc(menus:^MenuState) {
         bs.size = {1, 5}
         bs.active = false
 
-        margins := Rect{2,2,-2,-2}
-
         workshop_button := Button{
             rect = Rect{100,50,300,100}+margins,
             back_reference = int(EntityType.Workshop),
@@ -91,13 +89,23 @@ setup_menus :: proc(menus:^MenuState) {
     {
         em := &menus.boxes[.EntityMenu]
         em.rect = {500, 50, 800, 640}
-        em.active = true
+        em.active = false
+        CLOSE :: 0
+        close := Button {
+            rect = Rect{500,50,800,100}+margins,
+            back_reference = CLOSE,
+            label = "Close",
+            state = .None,
+            menu_name = .EntityMenu,
+        }
+        append(&em.buttons, close)
         te := TextElement {
-            rect = {510, 55, 795, 250},
+            rect = Rect{500, 100, 800, 250}+margins,
             text = "This is a test of the menu text rendering",
             menu_name = .EntityMenu,
         }
         append(&em.text_elements, te)
+
     }
 }
 
@@ -110,6 +118,7 @@ tear_down_menus :: proc(menus:^MenuState) {
 
 reset_menus :: proc(menus:^MenuState) {
     menus.boxes[.BuildingSelector].active = false
+    menus.boxes[.EntityMenu].active = false
     for &box in menus.boxes {
         for &btn in box.buttons {
             btn.state = .None
@@ -135,7 +144,14 @@ render_menus :: proc(r:^Renderer, menus:MenuState) {
 handle_button_press :: proc(menus:^MenuState, btn:^Button) -> (InteractionMode, int){
     switch btn.menu_name {
     case .Null: {}
-    case .EntityMenu: {}
+    case .EntityMenu: {
+        CLOSE :: 0
+
+        if btn.back_reference == CLOSE {
+            reset_menus(menus)
+            return .Map, 0
+        }
+    }
     case .InteractionModeSelector: {
         if btn.state == .Depressed {
             btn.state = .None
@@ -181,4 +197,24 @@ handle_menus_click :: proc(menus:^MenuState, pos:V2) -> (bool, InteractionMode, 
         }
     }
     return false, .Map, 0
+}
+
+setup_entity_menu :: proc(menus:^MenuState, e:^Entity) {
+    em := &menus.boxes[.EntityMenu]
+    clear(&em.text_elements)
+    margins := Rect{2,2,-2,2}
+    type := TextElement{
+        rect = Rect{500, 100, 800, 250}+margins,
+        text = fmt.tprint(e.type),
+        menu_name = .EntityMenu
+    }
+    append(&em.text_elements, type)
+}
+
+activate_menu :: proc(menus:^MenuState, menu:MenuName) {
+    menus.boxes[menu].active = true
+}
+
+deactivate_menu :: proc(menus:^MenuState, menu:MenuName) {
+    menus.boxes[menu].active = false
 }

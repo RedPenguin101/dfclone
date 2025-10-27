@@ -45,7 +45,7 @@ Camera :: struct {
 }
 
 InteractionMode :: enum {
-    Map, Mine, CutTrees, Build,
+    Map, Mine, CutTrees, Build, EntityInteract,
 }
 
 GameState :: struct {
@@ -140,6 +140,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
      **************/
 
     m := &s.m
+    menus := &s.menus
     entities := &s.e
     order_queue := &s.oq
 
@@ -172,10 +173,15 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                 s.im_building_selection = EntityType(qual)
             } else {
                 switch s.interaction_mode {
+                case .EntityInteract: {}
                 case .Map: {
                     entities_at_cursor := get_entities_at_pos(entities, s.hovered_tile)
                     if len(entities_at_cursor) > 0 {
-                        // TODO: Bring up entity menu on click
+                        eidx := entities_at_cursor[0]
+                        e := &entities[eidx]
+                        setup_entity_menu(menus, e)
+                        activate_menu(menus, .EntityMenu)
+                        s.interaction_mode = .EntityInteract
                     }
                 }
                 case .Mine: {
@@ -336,6 +342,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
     {
         /* Draw mouse hover */
         switch s.interaction_mode {
+        case .EntityInteract: {}
         case .Map, .CutTrees: fill_tile_with_color(r, s.hovered_tile, red)
         case .Mine: {
             if s.im_toggle {
