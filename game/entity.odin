@@ -18,15 +18,23 @@ EntityTableEntry :: struct {
     buildable:bool,
     super_type:EntitySuperType,
     action_frequency:f32,
+    building_made_of: [3]MaterialQuantity,
 }
 
 ENTITY_TABLE := [EntityType]EntityTableEntry {
-        .Null =     { {},      false, .Null,     0 },
-        .Dwarf =    { {1,1,1}, false, .Creature, 0.2},
-        .Stone =    { {1,1,1}, false, .Material, 0},
-        .Wood =     { {1,1,1}, false, .Material, 0},
-        .Tree =     { {1,1,1}, false, .Construction, 0},
-        .Workshop = { {2,2,1}, true,  .Construction, 0},
+        .Null =     { {},      false, .Null,     0,     {}},
+        .Dwarf =    { {1,1,1}, false, .Creature, 0.2,   {}},
+        .Stone =    { {1,1,1}, false, .Material, 0,     {}},
+        .Wood =     { {1,1,1}, false, .Material, 0,     {}},
+        .Tree =     { {1,1,1}, false, .Construction, 0, {{.Wood, 3}, {.Null, 0}, {.Null, 0}}},
+        .Workshop = { {2,2,1}, true,  .Construction, 0, {{.Stone, 2}, {.Null, 0}, {.Null, 0}}},
+}
+
+BuildingStatus :: enum { Null, PendingMaterialAssignment, PendingConstruction, Normal, PendingDeconstruction, }
+
+MaterialQuantity :: struct {
+    material:EntityType,
+    quantity:int,
 }
 
 Entity :: struct {
@@ -35,8 +43,16 @@ Entity :: struct {
     dim : V3i,
     current_order_idx: int,
     action_ticker : f32,
+    building_status : BuildingStatus,
+    building_made_of: [3]MaterialQuantity,
     deconstruction_percentage: f32,
-    inventory : [dynamic]int,
+}
+
+building_construction_request :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
+    i := add_entity(es, type, pos)
+    es[i].building_status = .PendingMaterialAssignment
+    es[i].deconstruction_percentage = 1
+    return i
 }
 
 add_entity :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
@@ -46,8 +62,9 @@ add_entity :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
         ENTITY_TABLE[type].dims,
         0,
         ENTITY_TABLE[type].action_frequency,
-        0,
-        {}
+        .Null,
+        ENTITY_TABLE[type].building_made_of,
+        0
     }
     free_size := len(E_FREE_STACK)
     idx : int
@@ -66,7 +83,6 @@ add_entity :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
 E_FREE_STACK : [dynamic]int
 
 remove_entity :: proc(es:^[dynamic]Entity, idx:int) {
-    delete(es[idx].inventory)
     es[idx] = {}
     append(&E_FREE_STACK, idx)
 }
@@ -97,4 +113,3 @@ get_entities_at_pos :: proc(es:^[dynamic]Entity, pos:V3i) -> []int {
     }
     return E_BUFF[:idx]
 }
-

@@ -6,3 +6,4 @@ simple sprite sheet
 Change UI rendering to have CM basis
 Better font
 Proper windows hotloading with timestamp and file copy
+Multiple types of Stone

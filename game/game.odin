@@ -56,6 +56,7 @@ GameState :: struct {
     cam:Camera,
     hovered_tile:V3i,
     menus:MenuState,
+
     interaction_mode:InteractionMode,
     im_building_selection:EntityType,
     im_toggle:bool,
@@ -103,16 +104,10 @@ game_state_destroy :: proc(memory:^GameMemory) {
     destroy_order_queue(&memory.game_state.oq)
     tear_down_menus(&memory.game_state.menus)
 
-    for i in 0..<len(memory.game_state.e) {
-        if memory.game_state.e[i].type != .Null {
-            delete(memory.game_state.e[i].inventory)
-        }
-    }
     delete(memory.game_state.e)
     delete(E_FREE_STACK)
     free(memory)
 }
-
 
 @(export)
 game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Renderer) {
@@ -213,12 +208,13 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                 }
                 case .Build: {
                     if s.im_building_selection != .Null {
-                        idx := add_entity(&s.e, s.im_building_selection, s.hovered_tile)
-                        s.e[idx].deconstruction_percentage = 1
-                        add_order(order_queue, .Construct, s.hovered_tile, idx)
-                        s.interaction_mode = .Map
+                        idx := building_construction_request(entities, s.im_building_selection, s.hovered_tile)
+                        /* add_order(order_queue, .Construct, s.hovered_tile, idx) */
+                        s.interaction_mode = .EntityInteract
+                        reset_menus(menus)
+                        activate_menu(menus, .EntityMenu)
+                        setup_entity_menu(menus, &entities[idx])
                         s.im_building_selection = .Null
-                        reset_menus(&s.menus)
                     }
                 }
                 }
