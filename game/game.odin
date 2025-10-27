@@ -55,7 +55,7 @@ GameState :: struct {
 
     cam:Camera,
     hovered_tile:V3i,
-    ui:UI,
+    menus:MenuState,
     interaction_mode:InteractionMode,
     im_building_selection:EntityType,
     im_toggle:bool,
@@ -101,7 +101,13 @@ game_state_init :: proc(platform_api:c.PlatformApi) -> rawptr {
 game_state_destroy :: proc(memory:^GameMemory) {
     destroy_map(&memory.game_state.m)
     destroy_order_queue(&memory.game_state.oq)
-    tear_down_ui(&memory.game_state.ui)
+    tear_down_menus(&memory.game_state.menus)
+
+    for i in 0..<len(memory.game_state.e) {
+        if memory.game_state.e[i].type != .Null {
+            delete(memory.game_state.e[i].inventory)
+        }
+    }
     delete(memory.game_state.e)
     delete(E_FREE_STACK)
     free(memory)
@@ -125,7 +131,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         add_entity(&s.e, .Dwarf, {5, 10, 1})
         add_entity(&s.e, .Tree, {4, 4, 1})
         add_order(&s.oq, .Null, {})
-        setup_ui(&s.ui)
+        setup_menus(&s.menus)
         memory.initialized = true
     }
 
@@ -134,6 +140,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
      **************/
 
     m := &s.m
+    entities := &s.e
+    order_queue := &s.oq
 
     /*********************
      * SEC: HANDLE INPUT *
@@ -157,15 +165,19 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
             mouse_in_px_space.y *= -SCREEN_HEIGHT
             mouse_in_px_space.x *= SCREEN_WIDTH
 
-            ui_captured, im, qual := handle_ui_click(&s.ui, mouse_in_px_space)
+            menus_captured, im, qual := handle_menus_click(&s.menus, mouse_in_px_space)
 
-            if ui_captured {
+            if menus_captured {
                 s.interaction_mode = im
                 s.im_building_selection = EntityType(qual)
-            }
-            else {
+            } else {
                 switch s.interaction_mode {
-                case .Map: {}
+                case .Map: {
+                    entities_at_cursor := get_entities_at_pos(entities, s.hovered_tile)
+                    if len(entities_at_cursor) > 0 {
+                        // TODO: Bring up entity menu on click
+                    }
+                }
                 case .Mine: {
                     if !s.im_toggle {
                         s.im_toggle = true
@@ -178,7 +190,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                             for y in v_min.y..=v_max.y {
                                 tile := get_map_tile(m, {x,y,v_min.z})
                                 if tile.content == .Filled {
-                                    tile.order_idx = add_order(&s.oq, .Mine, {x,y,v_min.z})
+                                    tile.order_idx = add_order(order_queue, .Mine, {x,y,v_min.z})
                                 }
                             }
                         }
@@ -189,7 +201,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                     es := get_entities_at_pos(&s.e, s.hovered_tile)
                     for e_i in es {
                         if s.e[e_i].type == .Tree {
-                            add_order(&s.oq, .CutTree, s.hovered_tile, e_i)
+                            add_order(order_queue, .CutTree, s.hovered_tile, e_i)
                         }
                     }
                 }
@@ -197,10 +209,10 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                     if s.im_building_selection != .Null {
                         idx := add_entity(&s.e, s.im_building_selection, s.hovered_tile)
                         s.e[idx].deconstruction_percentage = 1
-                        add_order(&s.oq, .Construct, s.hovered_tile, idx)
+                        add_order(order_queue, .Construct, s.hovered_tile, idx)
                         s.interaction_mode = .Map
                         s.im_building_selection = .Null
-                        reset_ui(&s.ui)
+                        reset_menus(&s.menus)
                     }
                 }
                 }
@@ -238,8 +250,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
     for &e in s.e {
         super_type := ENTITY_TABLE[e.type].super_type
         if super_type == .Creature {
-            if e.current_order_idx== 0 {
-                i, o := get_unassigned_order(&s.oq)
+            if e.current_order_idx == 0 {
+                i, o := get_unassigned_order(order_queue)
                 if i > 0 {
                     e.current_order_idx = i
                     o.status = .Assigned
@@ -259,7 +271,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                         if o.type == .Mine {
                             // TODO: Encapsulate order completion
                             mine_tile(m, target_pos)
-                            complete_order(&s.oq, e.current_order_idx)
+                            complete_order(order_queue, e.current_order_idx)
                             e.current_order_idx = 0
                             get_map_tile(m, target_pos).order_idx = 0
                             add_entity(&s.e, .Stone, target_pos)
@@ -268,7 +280,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                             assert(tree.type == .Tree)
                             tree.deconstruction_percentage += 0.2
                             if tree.deconstruction_percentage > 1 {
-                                complete_order(&s.oq, e.current_order_idx)
+                                complete_order(order_queue, e.current_order_idx)
                                 e.current_order_idx = 0
                                 get_map_tile(m, target_pos).order_idx = 0
                                 deconstruct_entity(&s.e, o.target_entity_idx)
@@ -278,7 +290,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                             building.deconstruction_percentage -= 0.2
                             if building.deconstruction_percentage < 0 {
                                 building.deconstruction_percentage = 0
-                                complete_order(&s.oq, e.current_order_idx)
+                                complete_order(order_queue, e.current_order_idx)
                                 e.current_order_idx = 0
                                 get_map_tile(m, target_pos).order_idx = 0
                             }
@@ -318,9 +330,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         }
     }
 
-    /****************
-     * SEC: Draw UI *
-     ****************/
+    /***********************
+     * SEC: Draw MenuState *
+     ***********************/
     {
         /* Draw mouse hover */
         switch s.interaction_mode {
@@ -357,8 +369,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 
         }
 
-        r.current_basis = .ui
-        render_ui(r, s.ui)
+        r.current_basis = .menus
+        render_menus(r, s.menus)
         r.current_basis = .screen
     }
 
@@ -366,12 +378,12 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
     /*******************
      * SEC: Draw Debug *
      *******************/
-    if true {
+    if false {
         idx :f32= 0.0
         dbg :: proc(r:^Renderer, text:string, idx:^f32) {
             TEXT_HEIGHT :: 0.03
             TEXT_START :: 0.28
-            c.queue_text(r, text, {0.02, TEXT_START-(idx^*TEXT_HEIGHT)}, white)
+            c.queue_text(r, text, {0.02, TEXT_START-(idx^*TEXT_HEIGHT), 1, 0.3}, white)
             idx^+=1
         }
         c.queue_rect(r, {0,0,1, 0.3}, blue)

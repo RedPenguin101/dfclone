@@ -29,14 +29,6 @@ ENTITY_TABLE := [EntityType]EntityTableEntry {
         .Workshop = { {2,2,1}, true,  .Construction, 0},
 }
 
-entity_dims :: proc(type:EntityType) -> V3i {
-    #partial switch type {
-    case .Null: return {}
-    case .Tree: return {1,1,3}
-    }
-    return {1,1,1}
-}
-
 Entity :: struct {
     type : EntityType,
     pos : V3i, // south west lower corner for multi-tile entities
@@ -44,10 +36,19 @@ Entity :: struct {
     current_order_idx: int,
     action_ticker : f32,
     deconstruction_percentage: f32,
+    inventory : [dynamic]int,
 }
 
 add_entity :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
-    new_entity := Entity{type, pos, entity_dims(type), 0, ENTITY_ACTION_FREQ, 0}
+    new_entity := Entity{
+        type,
+        pos,
+        ENTITY_TABLE[type].dims,
+        0,
+        ENTITY_TABLE[type].action_frequency,
+        0,
+        {}
+    }
     free_size := len(E_FREE_STACK)
     idx : int
     if free_size > 0 {
@@ -65,6 +66,7 @@ add_entity :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
 E_FREE_STACK : [dynamic]int
 
 remove_entity :: proc(es:^[dynamic]Entity, idx:int) {
+    delete(es[idx].inventory)
     es[idx] = {}
     append(&E_FREE_STACK, idx)
 }
@@ -84,7 +86,11 @@ E_BUFF : [E_BUFF_SIZE]int
 get_entities_at_pos :: proc(es:^[dynamic]Entity, pos:V3i) -> []int {
     idx := 0
     for e, i in es {
-        if e.pos == pos {
+        if e.type == .Workshop {
+            nothing()
+        }
+        cube := tile_cube_from_min_and_dim(e.pos, e.dim)
+        if in_cube(pos, cube) {
             E_BUFF[idx] = i
             idx += 1
         }

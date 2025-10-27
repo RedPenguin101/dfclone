@@ -131,11 +131,35 @@ render :: proc(item:^c.RenderRequest, font:rl.Font, basis:c.Basis) {
     }
     case .Text: {
         r := item.render.(c.RenderText)
-        pos := c.basis_xform_point(basis, r.position)
-        cstr := strings.clone_to_cstring(r.text, context.temp_allocator)
-        rl.DrawTextEx(font, cstr,
-                      pos, 20, 2,
-                      color_to_rl(r.color))
+        pos := c.basis_xform_point(basis, r.rect.xy)
+        max_char_per_line := max_characters_in_space(r.text, font, 20, 2, r.rect.z-r.rect.x)
+        line_count := int(f32(len(r.text)) / f32(max_char_per_line))+1
+        for l in 0..<line_count {
+            from := l*max_char_per_line
+            to := min(len(r.text), (1+l)*max_char_per_line)
+            cstr := strings.clone_to_cstring(r.text[from:to], context.temp_allocator)
+            pos.y += (20*f32(l))
+            rl.DrawTextEx(font, cstr, pos, 20, 2, color_to_rl(r.color))
+        }
     }
     }
+}
+
+/******************
+ * Text Utilities *
+ ******************/
+
+max_characters_in_space :: proc(text:string, font:rl.Font, font_size, spacing, box_width:f32) -> int {
+    cstr := strings.clone_to_cstring(text, context.temp_allocator)
+    max_chars := len(text)
+    size := rl.MeasureTextEx(font, cstr, font_size, spacing).x
+    for size > box_width {
+        ratio := size / box_width
+        max_chars = int(f32(max_chars) / ratio)
+        cstr = strings.clone_to_cstring(text[:max_chars], context.temp_allocator)
+        size = rl.MeasureTextEx(font, cstr, font_size, spacing).x
+
+    }
+
+    return max_chars
 }

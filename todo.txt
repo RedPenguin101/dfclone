@@ -1,4 +1,7 @@
+Constructions have menus
+Select material on building
 Proper camera and panning
 creatures can't move over z levels, better path find
 simple sprite sheet
 Change UI rendering to have CM basis
+Better font

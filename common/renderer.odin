@@ -63,12 +63,12 @@ queue_circle :: proc(r:^Renderer, center:V2, radius:f32, color:Color) {
 
 RenderText :: struct {
     text:string,
-    position:V2,
+    rect:Rect,
     color:Color,
 }
 
-queue_text :: proc(r:^Renderer, text:string, pos:V2, color:Color) {
-    append(&r.queue, RenderRequest{.Text, RenderText{text, pos, color}, r.current_basis})
+queue_text :: proc(r:^Renderer, text:string, rect:Rect, color:Color) {
+    append(&r.queue, RenderRequest{.Text, RenderText{text, rect, color}, r.current_basis})
 }
 
 RenderLine :: struct {
@@ -98,7 +98,7 @@ RenderRequest :: struct {
     basis:RenderBasisName
 }
 
-RenderBasisName :: enum {screen, ui}
+RenderBasisName :: enum {screen, menus}
 
 Renderer :: struct {
     queue : [dynamic]RenderRequest,

@@ -169,14 +169,14 @@ main :: proc() {
         y={0,-SCREEN_WIDTH},
     }
 
-    ui_basis := c.Basis{
+    menu_basis := c.Basis{
         origin={0,0},
         x={1, 0},
         y={0, 1},
     }
 
     renderer.bases[.screen] = screen_basis
-    renderer.bases[.ui] = ui_basis
+    renderer.bases[.menus] = menu_basis
 
     defer delete(renderer.queue)
 
