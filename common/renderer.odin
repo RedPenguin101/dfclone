@@ -86,6 +86,10 @@ RenderTexture :: struct {
     rotation:f32,
 }
 
+queue_texture :: proc(r:^Renderer, dest:Rect, tex:Texture, idx:int, tint:Color, rotation:f32=0.0, basis:=RenderBasisName.screen) {
+    append(&r.queue, RenderRequest{.Texture, RenderTexture{dest, tex, idx, tint, rotation}, basis})
+}
+
 RenderRequest :: struct {
     type : RenderType,
     render : union {

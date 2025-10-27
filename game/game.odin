@@ -20,8 +20,8 @@ Rect :: c.Rect
  ******************/
 
 NONE :: -1
-map_start :: 0.3
-tile_size :: 0.02
+map_start :: 0.0
+tile_size :: 0.04
 
 /* Colors */
 
@@ -45,7 +45,7 @@ Camera :: struct {
 }
 
 InteractionMode :: enum {
-    Map, Mine, CutTrees, Build, EntityInteract,
+    Map, Mine, CutTrees, Build, EntityInteract, Stockpile,
 }
 
 GameState :: struct {
@@ -68,6 +68,7 @@ GameMemory :: struct {
     initialized : bool,
     platform : c.PlatformApi,
     font: rawptr,
+    spritesheet:c.Texture,
 }
 
 /******************
@@ -84,6 +85,12 @@ fill_tile_with_circle :: proc(r:^Renderer, pos:V3i, color:Color) {
     x_s := map_start+(f32(pos.x)+0.5)*tile_size
     y_s := map_start+(f32(pos.y)+0.5)*tile_size
     c.queue_circle(r, {x_s, y_s}, tile_size/2, color)
+}
+
+render_texture_in_tile :: proc(r:^Renderer, pos:V3i, tex:c.Texture, idx:int) {
+    x_s := map_start+f32(pos.x)*tile_size
+    y_s := map_start+f32(pos.y)*tile_size
+    c.queue_texture(r, {x_s, y_s, x_s+tile_size, y_s+tile_size}, tex, idx, white)
 }
 
 /**********************
@@ -121,6 +128,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 
     if !memory.initialized {
         memory.font = memory.platform.load_font("./assets/fonts/InterVariable.ttf")
+        memory.spritesheet = memory.platform.load_sprite("./assets/sprites/spritesheet.png", 1, 1)
 
         s.cam.center = {0,0,1}
         s.m = init_map({20, 20, 3})
@@ -171,7 +179,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                 s.im_building_selection = EntityType(qual)
             } else {
                 switch s.interaction_mode {
-                case .EntityInteract: {}
+                case .EntityInteract, .Stockpile: {}
                 case .Map: {
                     entities_at_cursor := get_entities_at_pos(entities, s.hovered_tile)
                     if len(entities_at_cursor) > 0 {
@@ -311,7 +319,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
             switch e.type {
             case .Null: {}
             case .Dwarf: {
-                fill_tile_with_color(r, e.pos, blue)
+                render_texture_in_tile(r, e.pos, memory.spritesheet, 0)
             }
             case .Tree: {
                 fill_tile_with_color(r, e.pos, tree_brown)
@@ -341,7 +349,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
     {
         /* Draw mouse hover */
         switch s.interaction_mode {
-        case .EntityInteract: {}
+        case .EntityInteract, .Stockpile: {}
         case .Map, .CutTrees: fill_tile_with_color(r, s.hovered_tile, red)
         case .Mine: {
             if s.im_toggle {

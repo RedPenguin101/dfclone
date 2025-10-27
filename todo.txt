@@ -4,5 +4,4 @@ Proper camera and panning
 creatures can't move over z levels, better pathfind
 simple sprite sheet
 Change UI rendering to have CM basis
-Proper windows hotloading with timestamp and file copy
 Multiple types of Stone

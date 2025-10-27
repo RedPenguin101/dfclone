@@ -1,0 +1,12 @@
+Building Placement Flow:
+
+1. User places Building shadow, which creates a building entity in the status PendingMaterialAssignment
+2. The Entity Menu opens and the user can see available material for construction (or if there is none)
+   a) select the nearby material they want to use for the construction
+   b) cancel
+3. Cancelling removes the building entity and restores the map IM
+4. selecting the entity for use will
+   a) Update the construction materials of the building
+   b) Change the building status to PendingConstruction
+   c) Create a build order
+   d) return the IM to Map

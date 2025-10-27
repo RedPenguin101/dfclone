@@ -65,9 +65,17 @@ setup_menus :: proc(menus:^MenuState) {
             menu_name = .InteractionModeSelector,
             sub_menu = .BuildingSelector,
         }
+        stockpile_button := Button{
+            rect = Rect{150,0,200,50}+margins,
+            back_reference = int(InteractionMode.Stockpile),
+            label = fmt.tprint("S"),
+            state = .None,
+            menu_name = .InteractionModeSelector,
+        }
         append(&os.buttons, mining_button)
         append(&os.buttons, cut_trees_button)
         append(&os.buttons, build_button)
+        append(&os.buttons, stockpile_button)
     }
 
     {

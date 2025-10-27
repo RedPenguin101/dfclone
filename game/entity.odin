@@ -102,9 +102,6 @@ E_BUFF : [E_BUFF_SIZE]int
 get_entities_at_pos :: proc(es:^[dynamic]Entity, pos:V3i) -> []int {
     idx := 0
     for e, i in es {
-        if e.type == .Workshop {
-            nothing()
-        }
         cube := tile_cube_from_min_and_dim(e.pos, e.dim)
         if in_cube(pos, cube) {
             E_BUFF[idx] = i
