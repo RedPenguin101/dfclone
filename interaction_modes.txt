@@ -1,0 +1,43 @@
+Menus and Interaction Modes
+---------------------------
+
+When looking at the UI you will be in an INTERACTION MODE, which
+determines a) what you see and b) the impacts your inputs will have on
+the world. Your inputs can also transition between interaction modes.
+
+Let's take an example:
+
+- You are in the MAP interaction mode. In this mode, there are no
+  menus (except the main ones) visible. You can see the map screen.
+  You can hover your mouse over entities to see information about
+  those entities.
+
+- Clicking on an entity (say, a workshop) will transition you to the
+  ENTITY interaction mode. In this IM, the Entity Menu will be
+  available which shows you information about the entity, and also
+  available actions for that entity. For example you can click the ADD
+  ORDER button.
+
+- Clicking add order will take you to a menu showing the list of
+  things that can be built in that workshop, with a button for each
+  one. Clicking the 'Bed' button will issue a "Build Bed at Workshop"
+  order. It will also transition you back to the main entity menu,
+  where the order you placed is now visible.
+
+- You close the entity menu, returning to the MAP interaction mode.
+
+There are a few lessons here. First, IMs and menus are very closely
+linked, but not synonymous. The entity IM has at least two menus: the
+main entity menu, and the build submenu. Second, IMs have associated
+state: When in the entity IM, the entity itself is part of the
+context, so needs to be stored. And the fact that you are in the build
+menu is also state that needs to be recorded.
+
+Button clicks have actions: clicking the ADD ORDER button must open a
+new menu. And within that new menu, clicking the BED button must issue
+a new order. How to implement this? Callbacks are one option. But
+maybe not a great one. Another is the Immediate Mode GUI concept.
+
+https://www.youtube.com/watch?v=Z1qyvQsjK5Y
+
+

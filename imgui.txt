@@ -1,0 +1,99 @@
+https://www.youtube.com/watch?v=Z1qyvQsjK5Y
+https://caseymuratori.com/blog_0001
+
+Traditional/Retained Mode/RM: Callback/message queue: Something
+happens in the app, a button click whatever, and as a result of that,
+either a callback is called, or there is a message put to a message
+queue that you need to handle. Usually it will be ID based information
+you get, and you need to look up the application state based on those
+IDs and perform some action - set/get, create/delete, enable. This is
+a big pain in the butt. It's usually very decentralized.
+
+IM: There's no init code, no call backs, only a centralized main
+update path written by you. For example you'll have a `do(button)`
+function which returns true if the button is clicked. Then you use
+that predicate to handle the consequences of clicking that button.
+
+```c
+if (do(button)) {
+  <action code>
+  <draw another button/menu>
+}
+
+if / for / while {
+  <do>
+}
+```
+
+Core structure: UI Context. Tracks the state of the users interaction
+with the system at any given time. The user can only ever be
+interacting with one thing at a given time - the Active. So make a
+global Active which tracks what that is. The rest of the data (for
+example the text in an edit box) shouldn't be stored in the UI element
+itself, it comes from the application's state.
+
+What needs to be tracked is the 'identification' of the item. And
+there are two 'states': about to be interacted with (e.g. hovered,
+highlighted), and actually interacted with (e.g. editing a text box
+after clicking it.)
+
+```c
+ui_id Hot
+ui_id Active
+```
+
+Note the different reasons you need an ID in RM and IM: in RM you need
+IDs because different parts of the code (in the callback/handler) need
+to talk to eachother about the item. It's a globally unique
+identifier. In IM that's not necessary because you're storing all the
+information on the app side, not in the UI side. We do _need_
+identifiers because we need to remember which element the user was
+interacting with in the last frame.
+
+```c
+struct ui_id {
+  int Owner,
+  int Item,
+  int Index,
+}
+```
+
+UI library code
+
+```c
+bool DoButton(UI, ID, Text, MouseInside, MouseWentDown, MouseWentUp) {
+  Result = false
+  if ID==Hot {
+    if MouseWentDown SetActive(ID);
+  } else if Active {
+    if MouseButtonReleased {
+      if ID==Hot Result = true; // released button when hovered over it
+      SetNotActive(ID);
+    }
+  }
+
+  if MouseInside SetHot(ID);
+
+  DrawButton(Text)
+  // returns true if the button was clicked so caller can handle
+  return Result;
+}
+```
+
+Calling Code
+
+```c
+for menu in menus
+  for item in menu.active_items
+    acted = DoItem(item)
+    if acted handle_acted(item)
+```
+
+benefits:
+
+- single piece of code per logical piece
+- unified control flow (no callbacks)
+- not synchronization, including existence
+- scales well to complex widgets, interactions
+- trivial integration with unaware compoents
+- perfect for real time UIs
