@@ -39,6 +39,8 @@ load_sprite :: proc(filepath:string, lines,frames_per_line:int) -> c.Texture {
         format=int(tex.format),
         frame_width=int(tex.width)/frames_per_line,
         frame_height=int(tex.height)/lines,
+        sprites_per_row = frames_per_line,
+        sprites_per_col = lines,
     }
 }
 

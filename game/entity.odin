@@ -27,7 +27,7 @@ ENTITY_TABLE := [EntityType]EntityTableEntry {
         .Stone =    { {1,1,1}, false, .Material, 0,     {}},
         .Wood =     { {1,1,1}, false, .Material, 0,     {}},
         .Tree =     { {1,1,1}, false, .Construction, 0, {{.Wood, 3}, {.Null, 0}, {.Null, 0}}},
-        .Workshop = { {2,2,1}, true,  .Construction, 0, {{.Stone, 2}, {.Null, 0}, {.Null, 0}}},
+        .Workshop = { {3,3,1}, true,  .Construction, 0, {{.Stone, 2}, {.Null, 0}, {.Null, 0}}},
 }
 
 BuildingStatus :: enum { Null, PendingMaterialAssignment, PendingConstruction, Normal, PendingDeconstruction, }

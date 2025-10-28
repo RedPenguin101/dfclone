@@ -69,6 +69,7 @@ GameMemory :: struct {
     platform : c.PlatformApi,
     font: rawptr,
     spritesheet:c.Texture,
+    backup_spritesheet:c.Texture,
 }
 
 /******************
@@ -87,10 +88,10 @@ fill_tile_with_circle :: proc(r:^Renderer, pos:V3i, color:Color) {
     c.queue_circle(r, {x_s, y_s}, tile_size/2, color)
 }
 
-render_texture_in_tile :: proc(r:^Renderer, pos:V3i, tex:c.Texture, idx:int) {
+render_texture_in_tile :: proc(r:^Renderer, pos:V3i, tex:c.Texture, idx:int, tint:=white) {
     x_s := map_start+f32(pos.x)*tile_size
     y_s := map_start+f32(pos.y)*tile_size
-    c.queue_texture(r, {x_s, y_s, x_s+tile_size, y_s+tile_size}, tex, idx, white)
+    c.queue_texture(r, {x_s, y_s, x_s+tile_size, y_s+tile_size}, tex, idx, tint)
 }
 
 /**********************
@@ -129,6 +130,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
     if !memory.initialized {
         memory.font = memory.platform.load_font("./assets/fonts/InterVariable.ttf")
         memory.spritesheet = memory.platform.load_sprite("./assets/sprites/spritesheet.png", 1, 1)
+        memory.backup_spritesheet = memory.platform.load_sprite("./assets/sprites/DF_sir_henry.png", 16, 16)
 
         s.cam.center = {0,0,1}
         s.m = init_map({20, 20, 3})
@@ -319,10 +321,13 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
             switch e.type {
             case .Null: {}
             case .Dwarf: {
-                render_texture_in_tile(r, e.pos, memory.spritesheet, 0)
+                /* render_texture_in_tile(r, e.pos, memory.spritesheet, 0) */
+                fill_tile_with_color(r, e.pos, blue)
+                render_texture_in_tile(r, e.pos, memory.backup_spritesheet, 2)
             }
             case .Tree: {
                 fill_tile_with_color(r, e.pos, tree_brown)
+                render_texture_in_tile(r, e.pos, memory.backup_spritesheet, 79)
             }
             case .Stone: {
                 fill_tile_with_circle(r, e.pos, stone_grey)
@@ -331,12 +336,31 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                 fill_tile_with_circle(r, e.pos, tree_brown)
             }
             case .Workshop: {
+                background := black
+                fg1 := white
+                fg2 := Color{1, 186.0/255, 0, 1}
+
+                if e.building_status == .PendingMaterialAssignment || e.building_status == .PendingConstruction {
+                    background.a = 0.5
+                    fg1.a = 0.5
+                    fg2.a = 0.5
+                }
+
                 e_def := ENTITY_TABLE[.Workshop]
                 for x in 0..<e_def.dims.x {
                     for y in 0..<e_def.dims.y {
-                        fill_tile_with_color(r, e.pos+{x,y,0}, black)
+                        fill_tile_with_color(r, e.pos+{x,y,0}, background)
                     }
                 }
+                render_texture_in_tile(r, e.pos+{0,0,0}, memory.backup_spritesheet, 177, fg1)
+                render_texture_in_tile(r, e.pos+{0,1,0}, memory.backup_spritesheet, 177, fg1)
+                render_texture_in_tile(r, e.pos+{2,0,0}, memory.backup_spritesheet, 177, fg1)
+                render_texture_in_tile(r, e.pos+{1,0,0}, memory.backup_spritesheet, 93 , fg1)
+                render_texture_in_tile(r, e.pos+{2,1,0}, memory.backup_spritesheet, 39 , fg1)
+                render_texture_in_tile(r, e.pos+{1,1,0}, memory.backup_spritesheet, 96 , fg1)
+                render_texture_in_tile(r, e.pos+{0,2,0}, memory.backup_spritesheet, 96 , fg1)
+                render_texture_in_tile(r, e.pos+{1,2,0}, memory.backup_spritesheet, 34 , fg1)
+                render_texture_in_tile(r, e.pos+{2,2,0}, memory.backup_spritesheet, 61, fg2)
 
             }
             }

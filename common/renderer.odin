@@ -10,6 +10,7 @@ Texture :: struct {
     mipmaps: int,
     format:  int,
     frame_width, frame_height:int,
+    sprites_per_row, sprites_per_col:int,
 }
 
 Basis :: struct {

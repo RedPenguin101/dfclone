@@ -216,10 +216,13 @@ setup_entity_menu :: proc(menus:^MenuState, e:^Entity) {
     margins := Rect{2,2,-2,2}
     type := TextElement{
         rect = Rect{500, 100, 800, 250}+margins,
-        text = fmt.tprint(e.type),
+        text = fmt.tprintf("%v (%v)", e.type, e.building_status),
         menu_name = .EntityMenu
     }
     append(&em.text_elements, type)
+    if e.building_status == .PendingMaterialAssignment {
+        em.buttons[0].label = fmt.tprint("Cancel")
+    }
 }
 
 activate_menu :: proc(menus:^MenuState, menu:MenuName) {

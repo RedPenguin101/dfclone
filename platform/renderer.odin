@@ -38,6 +38,14 @@ render :: proc(item:^c.RenderRequest, basis:c.Basis) {
     case .Texture: {
         r := item.render.(c.RenderTexture)
         frame_width := r.tex.frame_width
+        frame_height := r.tex.frame_height
+
+        row := r.sprite_idx % r.tex.sprites_per_row
+        col := r.sprite_idx / r.tex.sprites_per_row
+
+        frame_x_start := row * frame_width
+        frame_y_start := col * frame_height
+
         tex2 := rl.Texture2D{
             id=u32(r.tex.id),
             width=i32(r.tex.width),
@@ -47,9 +55,7 @@ render :: proc(item:^c.RenderRequest, basis:c.Basis) {
         }
 
         // TODO: Multi-row sprites
-        frame_x_start := r.sprite_idx * frame_width
-        source_rec := rl.Rectangle{f32(frame_x_start),0,
-                                   f32(frame_width), f32(r.tex.height)}
+        source_rec := rl.Rectangle{f32(frame_x_start),f32(frame_y_start), f32(frame_width), f32(frame_height)}
         dest_rec := rect_to_rl(c.basis_xform_rect(basis, r.dest))
         rl.DrawTexturePro(tex2, source_rec, dest_rec, {0,0}, 0, color_to_rl(r.tint))
     }
