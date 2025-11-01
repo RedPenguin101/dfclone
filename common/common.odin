@@ -27,8 +27,13 @@ ButtonState :: struct {
     frames_down: f32,
 }
 
+pressed :: proc(b:ButtonState) -> bool {return b.is_down && !b.was_down}
+held :: proc(b:ButtonState) -> bool {return b.frames_down > 30}
+pressed_or_held :: proc(b:ButtonState) -> bool {return pressed(b) || held(b)}
+
 MouseInput :: struct {
     position : V2,
+    raw:V2,
     lmb : ButtonState,
     rmb : ButtonState,
     mmb : ButtonState,

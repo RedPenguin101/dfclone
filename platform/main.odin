@@ -250,6 +250,7 @@ main :: proc() {
         }
 
         mp := rl.GetMousePosition()
+        input.mouse.raw = mp
         mp.x /= SCREEN_WIDTH
         mp.y /= -SCREEN_HEIGHT
         mp.y += 1

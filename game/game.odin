@@ -59,6 +59,7 @@ GameState :: struct {
 
     interaction_mode:InteractionMode,
     im_building_selection:EntityType,
+    im_selected_entity_idx:int,
     im_toggle:bool,
     im_ref_pos:V3i,
 }
@@ -148,92 +149,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
      **************/
 
     m := &s.m
-    menus := &s.menus
     entities := &s.e
     order_queue := &s.oq
-
-    /*********************
-     * SEC: HANDLE INPUT *
-     *********************/
-
-    {
-        pressed :: proc(b:c.ButtonState) -> bool {return b.is_down && !b.was_down}
-        held :: proc(b:c.ButtonState) -> bool {return b.frames_down > 30}
-        pressed_or_held :: proc(b:c.ButtonState) -> bool {return pressed(b) || held(b)}
-
-        s.hovered_tile = v2_to_v3i((input.mouse.position-{map_start, map_start})/tile_size, s.cam.center.z)
-
-        if pressed(input.mouse.lmb) {
-            // TODO: Do this properly
-            SCREEN_WIDTH :: 800
-            SCREEN_HEIGHT :: 640
-
-            mouse_in_px_space := input.mouse.position
-            mouse_in_px_space.y /= 0.8
-            mouse_in_px_space.y -= 1.0
-            mouse_in_px_space.y *= -SCREEN_HEIGHT
-            mouse_in_px_space.x *= SCREEN_WIDTH
-
-            menus_captured, im, qual := handle_menus_click(&s.menus, mouse_in_px_space)
-
-            if menus_captured {
-                s.interaction_mode = im
-                s.im_building_selection = EntityType(qual)
-            } else {
-                switch s.interaction_mode {
-                case .EntityInteract, .Stockpile: {}
-                case .Map: {
-                    entities_at_cursor := get_entities_at_pos(entities, s.hovered_tile)
-                    if len(entities_at_cursor) > 0 {
-                        eidx := entities_at_cursor[0]
-                        e := &entities[eidx]
-                        setup_entity_menu(menus, e)
-                        activate_menu(menus, .EntityMenu)
-                        s.interaction_mode = .EntityInteract
-                    }
-                }
-                case .Mine: {
-                    if !s.im_toggle {
-                        s.im_toggle = true
-                        s.im_ref_pos = s.hovered_tile
-                    } else {
-                        v_min := vec_min(s.im_ref_pos, s.hovered_tile)
-                        v_max := vec_max(s.im_ref_pos, s.hovered_tile)
-                        assert(v_min.z==v_max.z)
-                        for x in v_min.x..=v_max.x {
-                            for y in v_min.y..=v_max.y {
-                                tile := get_map_tile(m, {x,y,v_min.z})
-                                if tile.content == .Filled {
-                                    tile.order_idx = add_order(order_queue, .Mine, {x,y,v_min.z})
-                                }
-                            }
-                        }
-                        s.im_toggle = false
-                    }
-                }
-                case .CutTrees: {
-                    es := get_entities_at_pos(&s.e, s.hovered_tile)
-                    for e_i in es {
-                        if s.e[e_i].type == .Tree {
-                            add_order(order_queue, .CutTree, s.hovered_tile, e_i)
-                        }
-                    }
-                }
-                case .Build: {
-                    if s.im_building_selection != .Null {
-                        idx := building_construction_request(entities, s.im_building_selection, s.hovered_tile)
-                        /* add_order(order_queue, .Construct, s.hovered_tile, idx) */
-                        s.interaction_mode = .EntityInteract
-                        reset_menus(menus)
-                        activate_menu(menus, .EntityMenu)
-                        setup_entity_menu(menus, &entities[idx])
-                        s.im_building_selection = .Null
-                    }
-                }
-                }
-            }
-        }
-    }
 
     /*******************
      * SEC: DRAW MAP *
@@ -367,49 +284,168 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         }
     }
 
-    /***********************
-     * SEC: Draw MenuState *
-     ***********************/
+    /******************************
+     * SEC: Menus and Interaction *
+     ******************************/
+
     {
-        /* Draw mouse hover */
-        switch s.interaction_mode {
-        case .EntityInteract, .Stockpile: {}
-        case .Map, .CutTrees: fill_tile_with_color(r, s.hovered_tile, red)
-        case .Mine: {
-            if s.im_toggle {
-                {
-                    v_min := vec_min(s.im_ref_pos, s.hovered_tile)
-                    v_max := vec_max(s.im_ref_pos, s.hovered_tile)
-                    assert(v_min.z==v_max.z)
-                    for x in v_min.x..=v_max.x {
-                        for y in v_min.y..=v_max.y {
-                            tile := get_map_tile(m, {x,y,v_min.z})
-                            if tile.content == .Filled {
-                                fill_tile_with_color(r, {x,y,v_min.z}, blue)
+        hot = NULL_UIID
+        for &element in s.menus.elements {
+            id := element.id
+            el_idx := element.id.element_idx
+            // TODO: ID Should just store the menu index?
+            menu_name := MenuName(id.menu_idx)
+            menu := &s.menus.menus[menu_name]
+            if !menu.visible do continue
+            rect := rect_adjust(element.rect, menu.rect.xy)
+            switch element.type {
+            case .Null: {}
+            case .Button: {
+                if do_button(id, input.mouse, r, memory.font, rect, element.text, element.state == .Depressed) {
+                    if menu_name == .MainBar {
+                        if element.state == .None {
+                            element.state = .Depressed
+                            s.interaction_mode = InteractionMode(id.element_idx+1)
+                            if element.submenu != .Null {
+                                s.menus.menus[element.submenu].visible = true
                             }
+                            for &other in s.menus.elements {
+                                if other.type != .Button || other.id == element.id do continue
+                                other.state = .None
+                            }
+                        } else if element.state == .Depressed {
+                            // Deactivate the related interaction mode
+                            s.interaction_mode = .Map
+                            element.state = .None
+                            if element.submenu != .Null {
+                                s.menus.menus[element.submenu].visible = false
+                            }
+
+                        }
+                    } else if menu_name == .BuildingSelector {
+                        if el_idx == 0 {
+                            if element.state == .Depressed {
+                                s.im_building_selection = .Null
+                                element.state = .None
+                            } else {
+                                s.im_building_selection = .Workshop
+                                element.state = .Depressed
+                            }
+                        } else if el_idx == 1 {
+                            // CLOSE
+                            s.interaction_mode = .Map
+                            menu.visible = false
+                            s.im_building_selection = .Null
+                            for other_idx in 0..<len(s.menus.menus[.MainBar].element_idx) {
+                                get_element_by_menu_idx(&s.menus, .MainBar, other_idx).state = .None
+                            }
+                        }
+                    } else if menu_name == .EntityMenu {
+                        if el_idx == 1 {
+                            s.interaction_mode = .Map
+                            menu.visible = false
                         }
                     }
                 }
-            } else {
-                fill_tile_with_color(r, s.hovered_tile, red)
+            }
+            case .Text: {
+                do_text(id, r, memory.font, rect, element.text)
+            }
             }
         }
-        case .Build: {
-            if s.im_building_selection != .Null {
-                e_def := ENTITY_TABLE[s.im_building_selection]
-                for x in 0..<e_def.dims.x {
-                    for y in 0..<e_def.dims.y {
-                        fill_tile_with_color(r, s.hovered_tile+{x,y,0}, red)
+
+        if hot == NULL_UIID {
+            // Hovered Tile render and handling
+            s.hovered_tile = v2_to_v3i((input.mouse.position-{map_start, map_start})/tile_size, s.cam.center.z)
+            lmb := c.pressed(input.mouse.lmb)
+
+            switch s.interaction_mode {
+            case .EntityInteract, .Stockpile: {}
+            case .Map: {
+                fill_tile_with_color(r, s.hovered_tile, red)
+
+                if lmb {
+                    entities_at_cursor := get_entities_at_pos(entities, s.hovered_tile)
+                    if len(entities_at_cursor) > 0 {
+                        eidx := entities_at_cursor[0]
+                        s.im_selected_entity_idx = eidx
+                        s.interaction_mode = .EntityInteract
+                        populate_entity_menu(&s.menus, entities[s.im_selected_entity_idx])
+                        s.menus.menus[.EntityMenu].visible = true
                     }
                 }
             }
-        }
+            case .CutTrees: {
+                fill_tile_with_color(r, s.hovered_tile, red)
+                if lmb {
+                    es := get_entities_at_pos(&s.e, s.hovered_tile)
+                    for e_i in es {
+                        if s.e[e_i].type == .Tree {
+                            add_order(order_queue, .CutTree, s.hovered_tile, e_i)
+                        }
+                    }
+                }
+            }
+            case .Mine: {
+                v_min := vec_min(s.im_ref_pos, s.hovered_tile)
+                v_max := vec_max(s.im_ref_pos, s.hovered_tile)
+                assert(v_min.z==v_max.z)
 
-        }
+                // TODO: Probably can clean this up a bit
+                if lmb {
+                    if !s.im_toggle {
+                        s.im_toggle = true
+                        s.im_ref_pos = s.hovered_tile
+                    } else {
+                        for x in v_min.x..=v_max.x {
+                            for y in v_min.y..=v_max.y {
+                                tile := get_map_tile(m, {x,y,v_min.z})
+                                if tile.content == .Filled {
+                                    tile.order_idx = add_order(order_queue, .Mine, {x,y,v_min.z})
+                                }
+                            }
+                        }
+                        s.im_toggle = false
+                    }
+                }
 
-        r.current_basis = .menus
-        render_menus(r, s.menus, memory.font)
-        r.current_basis = .screen
+                if s.im_toggle {
+                    {
+                        for x in v_min.x..=v_max.x {
+                            for y in v_min.y..=v_max.y {
+                                tile := get_map_tile(m, {x,y,v_min.z})
+                                if tile.content == .Filled {
+                                    fill_tile_with_color(r, {x,y,v_min.z}, blue)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    fill_tile_with_color(r, s.hovered_tile, red)
+                }
+            }
+            case .Build: {
+                if s.im_building_selection != .Null {
+                    e_def := ENTITY_TABLE[s.im_building_selection]
+                    for x in 0..<e_def.dims.x {
+                        for y in 0..<e_def.dims.y {
+                            fill_tile_with_color(r, s.hovered_tile+{x,y,0}, red)
+                        }
+                    }
+                }
+
+                if lmb {
+                    if s.im_building_selection != .Null {
+                        idx := building_construction_request(entities, s.im_building_selection, s.hovered_tile)
+                        add_order(order_queue, .Construct, s.hovered_tile, idx)
+                        s.interaction_mode = .EntityInteract
+                        s.im_building_selection = .Null
+                    }
+
+                }
+            }
+            }
+        }
     }
 
 

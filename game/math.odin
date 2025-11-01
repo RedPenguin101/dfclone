@@ -28,6 +28,15 @@ in_rect :: proc(v:V2,r:Rect) -> bool {
     return v.x > r.x && v.x <= r.z && v.y > r.y && v.y <= r.w
 }
 
+rect_adjust :: proc(r:Rect, v:V2) -> Rect {
+    return Rect{
+        r.x+v.x,
+        r.y+v.y,
+        r.z+v.x,
+        r.w+v.y,
+    }
+}
+
 vec_min :: proc(v,w:V3i) -> V3i {
     return {min(v.x,w.x),
             min(v.y,w.y),
