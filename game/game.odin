@@ -387,41 +387,26 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                 }
             }
             case .Mine: {
-                v_min := vec_min(s.im_ref_pos, s.hovered_tile)
-                v_max := vec_max(s.im_ref_pos, s.hovered_tile)
-                assert(v_min.z==v_max.z)
-
-                // TODO: Probably can clean this up a bit
-                if lmb {
-                    if !s.im_toggle {
+                if !s.im_toggle {
+                    if lmb {
                         s.im_toggle = true
                         s.im_ref_pos = s.hovered_tile
-                    } else {
-                        for x in v_min.x..=v_max.x {
-                            for y in v_min.y..=v_max.y {
-                                tile := get_map_tile(m, {x,y,v_min.z})
-                                if tile.content == .Filled {
-                                    tile.order_idx = add_order(order_queue, .Mine, {x,y,v_min.z})
-                                }
-                            }
-                        }
-                        s.im_toggle = false
                     }
-                }
-
-                if s.im_toggle {
-                    {
-                        for x in v_min.x..=v_max.x {
-                            for y in v_min.y..=v_max.y {
-                                tile := get_map_tile(m, {x,y,v_min.z})
-                                if tile.content == .Filled {
-                                    fill_tile_with_color(r, {x,y,v_min.z}, blue)
-                                }
-                            }
-                        }
-                    }
-                } else {
                     fill_tile_with_color(r, s.hovered_tile, red)
+                } else {
+                    v_min := vec_min(s.im_ref_pos, s.hovered_tile)
+                    v_max := vec_max(s.im_ref_pos, s.hovered_tile)
+                    assert(v_min.z==v_max.z)
+                    for x in v_min.x..=v_max.x {
+                        for y in v_min.y..=v_max.y {
+                            tile := get_map_tile(m, {x,y,v_min.z})
+                            if tile.content == .Filled {
+                                if lmb do tile.order_idx = add_order(order_queue, .Mine, {x,y,v_min.z})
+                                fill_tile_with_color(r, {x,y,v_min.z}, blue)
+                            }
+                        }
+                    }
+                    if lmb do s.im_toggle = false
                 }
             }
             case .Build: {
