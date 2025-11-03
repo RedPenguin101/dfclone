@@ -1,0 +1,13 @@
+The characteristics of a building
+
+1. It has a set of material-types which it can be built from (stone, wood)
+2. It will be made of a set of materials
+3. It can produce a set of recipies
+
+When I select a building to make, I need to
+
+1. Determine which materials are usable for the contruction of that building.
+2. Present them to the user in a condensed list, ordered by distance
+3. When the user selects the material to use, earmark that material for use
+   so it doesn't get picked up by some other process
+4. Add that earmarked material to the order for use

@@ -48,3 +48,8 @@ vec_max :: proc(v,w:V3i) -> V3i {
             max(v.y,w.y),
             max(v.z,w.z)}
 }
+
+mh_distance :: proc(v,w:V3i) -> int {
+    u := v+w
+    return u.x+u.y+u.z
+}

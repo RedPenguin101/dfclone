@@ -1,40 +1,10 @@
 package game
 
-ENTITY_ACTION_FREQ :: 0.2
-
-EntitySuperType :: enum { Null, Creature, Construction, Material }
-
 EntityType :: enum {
     Null,
-    Dwarf,
-    Stone,
-    Wood,
-    Tree,
-    Workshop,
-}
-
-EntityTableEntry :: struct {
-    dims:V3i,
-    buildable:bool,
-    super_type:EntitySuperType,
-    action_frequency:f32,
-    building_made_of: [3]MaterialQuantity,
-}
-
-ENTITY_TABLE := [EntityType]EntityTableEntry {
-        .Null =     { {},      false, .Null,     0,     {}},
-        .Dwarf =    { {1,1,1}, false, .Creature, 0.2,   {}},
-        .Stone =    { {1,1,1}, false, .Material, 0,     {}},
-        .Wood =     { {1,1,1}, false, .Material, 0,     {}},
-        .Tree =     { {1,1,1}, false, .Construction, 0, {{.Wood, 3}, {.Null, 0}, {.Null, 0}}},
-        .Workshop = { {3,3,1}, true,  .Construction, 0, {{.Stone, 2}, {.Null, 0}, {.Null, 0}}},
-}
-
-BuildingStatus :: enum { Null, PendingMaterialAssignment, PendingConstruction, Normal, PendingDeconstruction, }
-
-MaterialQuantity :: struct {
-    material:EntityType,
-    quantity:int,
+    Creature,
+    Building,
+    Material,
 }
 
 Entity :: struct {
@@ -43,28 +13,28 @@ Entity :: struct {
     dim : V3i,
     current_order_idx: int,
     action_ticker : f32,
-    building_status : BuildingStatus,
-    building_made_of: [3]MaterialQuantity,
-    deconstruction_percentage: f32,
+    building:Building,
+    material:Material,
 }
 
-building_construction_request :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
-    i := add_entity(es, type, pos)
-    es[i].building_status = .PendingMaterialAssignment
-    es[i].deconstruction_percentage = 1
+building_construction_request :: proc(es:^[dynamic]Entity, type:BuildingType, pos:V3i) -> int {
+    building := Building{
+        type = type,
+        status = .PendingMaterialAssignment,
+        deconstruction_percentage = 1,
+    }
+    i := add_entity(es, .Building, pos)
+    es[i].building = building
     return i
 }
 
 add_entity :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
     new_entity := Entity{
-        type,
-        pos,
-        ENTITY_TABLE[type].dims,
-        0,
-        ENTITY_TABLE[type].action_frequency,
-        .Null,
-        ENTITY_TABLE[type].building_made_of,
-        0
+        type              = type,
+        pos               = pos,
+        dim               = {1,1,1},
+        current_order_idx = 0,
+        action_ticker     = 0.2
     }
     free_size := len(E_FREE_STACK)
     idx : int
@@ -90,8 +60,19 @@ remove_entity :: proc(es:^[dynamic]Entity, idx:int) {
 deconstruct_entity :: proc(es:^[dynamic]Entity, idx:int) {
     ety := es[idx]
     remove_entity(es, idx)
-    if ety.type == .Tree {
-        add_entity(es, .Wood, ety.pos)
+    // When the entity is made_of materials, put the made_of materials around the object
+    if ety.type == .Building {
+        for mat in ety.building.made_of {
+            for _ in 0..<mat.quantity {
+                i := add_entity(es, .Material, ety.pos)
+                new_mat := Material{
+                    type = mat.type,
+                    form = mat.form,
+                    quantity = 1,
+                }
+                es[i].material = new_mat
+            }
+        }
     }
 }
 
@@ -109,4 +90,24 @@ get_entities_at_pos :: proc(es:^[dynamic]Entity, pos:V3i) -> []int {
         }
     }
     return E_BUFF[:idx]
+}
+
+get_construction_materials :: proc(es:[]Entity) -> []Material {
+    mat_map : [MaterialType]int
+    for e in es {
+        if e.type == .Material {
+            mat_map[e.material.type] += 1
+        }
+    }
+    mats := make([dynamic]Material)
+    for m in MaterialType {
+        q := mat_map[m]
+        if q == 0 do continue
+        append(&mats, Material{
+            type = m,
+            form = .Natural,
+            quantity = q,
+        })
+    }
+    return mats[:]
 }

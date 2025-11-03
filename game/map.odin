@@ -1,10 +1,8 @@
 package game
 
-TileContent :: enum { Nothing, Filled, }
-
 Tile :: struct {
     pos:V3i,
-    content : TileContent,
+    content : Terrain,
     order_idx:int,
 }
 
@@ -28,11 +26,11 @@ INIT_DUMMY_MAP :: proc(m:^Map) {
     for y in 0..<m.dim.y {
         for x in 0..<m.dim.x {
             t := get_map_tile(m, {x,y,0})
-            t.content = .Filled
+            t.content = make_terrain(.Stone_Limestone, .Solid)
             t.pos = {x,y,1}
             if x > 10 {
                 t = get_map_tile(m, {x,y,1})
-                t.content = .Filled
+                t.content = make_terrain(.Stone_Limestone, .Solid)
             }
         }
     }
@@ -45,8 +43,9 @@ get_map_tile :: proc(m:^Map, i:V3i) -> ^Tile {
     return &m.tiles[i.z*z_stride + i.y*y_stride + i.x]
 }
 
-mine_tile :: proc(m:^Map, i:V3i) {
+mine_tile :: proc(m:^Map, i:V3i) -> Material {
     tile := get_map_tile(m, i)
-    assert(tile.content == .Filled)
-    tile.content = .Nothing
+    assert(tile.content.shape == .Solid)
+    tile.content.shape = .Floor
+    return tile.content.made_of
 }

@@ -58,10 +58,11 @@ GameState :: struct {
     menus:MenuState,
 
     interaction_mode:InteractionMode,
-    im_building_selection:EntityType,
+    im_building_selection:BuildingType,
     im_selected_entity_idx:int,
     im_toggle:bool,
     im_ref_pos:V3i,
+    im_material_buffer:[]Material,
 }
 
 GameMemory :: struct {
@@ -133,13 +134,42 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         memory.spritesheet = memory.platform.load_sprite("./assets/sprites/spritesheet.png", 1, 1)
         memory.backup_spritesheet = memory.platform.load_sprite("./assets/sprites/DF_sir_henry.png", 16, 16)
 
+        add_entity(&s.e, .Null, {0,0,0})
+        add_order(&s.oq, .Null, {})
+
         s.cam.center = {0,0,1}
         s.m = init_map({20, 20, 3})
         INIT_DUMMY_MAP(&s.m)
-        add_entity(&s.e, .Null, {0,0,0})
-        add_entity(&s.e, .Dwarf, {5, 10, 1})
-        add_entity(&s.e, .Tree, {4, 4, 1})
-        add_order(&s.oq, .Null, {})
+        add_entity(&s.e, .Creature, {5, 10, 1})
+
+        t := add_entity(&s.e, .Building, {4, 4, 1})
+        tree := make_tree(.Wood_Oak)
+        s.e[t].building = tree
+
+        t = add_entity(&s.e, .Material, {9, 4, 1})
+        s.e[t].material = {
+            type = .Stone_Limestone,
+            form = .Natural,
+            quantity = 1,
+            earmarked_for_use = false
+        }
+
+        t = add_entity(&s.e, .Material, {9, 5, 1})
+        s.e[t].material = Material{
+            type = .Stone_Magnetite,
+            form = .Natural,
+            quantity = 1,
+            earmarked_for_use = false
+        }
+
+        t = add_entity(&s.e, .Material, {9, 6, 1})
+        s.e[t].material = Material{
+            type = .Wood_Oak,
+            form = .Natural,
+            quantity = 1,
+            earmarked_for_use = false
+        }
+
         setup_menus(&s.menus)
         memory.initialized = true
     }
@@ -165,7 +195,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                 color:Color
                 if tile.order_idx > 0 {
                     color = black
-                } else if tile.content == .Filled {
+                } else if tile.content.shape == .Solid {
                     color = stone_grey
                 } else {
                     color = green
@@ -180,8 +210,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
      ********************/
 
     for &e in s.e {
-        super_type := ENTITY_TABLE[e.type].super_type
-        if super_type == .Creature {
+	type := e.type
+        if type == .Creature {
             if e.current_order_idx == 0 {
                 i, o := get_unassigned_order(order_queue)
                 if i > 0 {
@@ -202,16 +232,18 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                     } else {
                         if o.type == .Mine {
                             // TODO: Encapsulate order completion
-                            mine_tile(m, target_pos)
+                            mat := mine_tile(m, target_pos)
                             complete_order(order_queue, e.current_order_idx)
                             e.current_order_idx = 0
                             get_map_tile(m, target_pos).order_idx = 0
-                            add_entity(&s.e, .Stone, target_pos)
+                            i := add_entity(&s.e, .Material, target_pos)
+                            s.e[i].material = mat
                         } else if o.type == .CutTree {
                             tree := &s.e[o.target_entity_idx]
-                            assert(tree.type == .Tree)
-                            tree.deconstruction_percentage += 0.2
-                            if tree.deconstruction_percentage > 1 {
+                            assert(tree.building.type == .Tree)
+                            fmt.println("desconstructing building", tree.building.deconstruction_percentage)
+                            tree.building.deconstruction_percentage += 0.2
+                            if tree.building.deconstruction_percentage > 1 {
                                 complete_order(order_queue, e.current_order_idx)
                                 e.current_order_idx = 0
                                 get_map_tile(m, target_pos).order_idx = 0
@@ -219,9 +251,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                             }
                         } else if o.type == .Construct {
                             building := &s.e[o.target_entity_idx]
-                            building.deconstruction_percentage -= 0.2
-                            if building.deconstruction_percentage < 0 {
-                                building.deconstruction_percentage = 0
+                            building.building.deconstruction_percentage -= 0.2
+                            if building.building.deconstruction_percentage < 0 {
+                                building.building.deconstruction_percentage = 0
                                 complete_order(order_queue, e.current_order_idx)
                                 e.current_order_idx = 0
                                 get_map_tile(m, target_pos).order_idx = 0
@@ -229,7 +261,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                         }
                     }
                 }
-                e.action_ticker += ENTITY_ACTION_FREQ
+                e.action_ticker += 0.2
             }
         }
 
@@ -237,56 +269,57 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         if e.pos.z == s.cam.center.z {
             switch e.type {
             case .Null: {}
-            case .Dwarf: {
+            case .Creature: {
                 /* render_texture_in_tile(r, e.pos, memory.spritesheet, 0) */
                 fill_tile_with_color(r, e.pos, blue)
                 render_texture_in_tile(r, e.pos, memory.backup_spritesheet, 2)
             }
-            case .Tree: {
-                fill_tile_with_color(r, e.pos, tree_brown)
+            case .Building: {
+                if e.building.type == .Tree {
+                    fill_tile_with_color(r, e.pos, tree_brown)
+                } else if e.building.type == .StoneMason {
+                    background := black
+                    fg1 := white
+                    fg2 := Color{1, 186.0/255, 0, 1}
+
+                    if e.building.status == .PendingMaterialAssignment || e.building.status == .PendingConstruction {
+                        background.a = 0.5
+                        fg1.a = 0.5
+                        fg2.a = 0.5
+                    }
+
+                    e_def := B_PROTOS[.StoneMason]
+                    for x in 0..<e_def.dims.x {
+                        for y in 0..<e_def.dims.y {
+                            fill_tile_with_color(r, e.pos+{x,y,0}, background)
+                        }
+                    }
+                    render_texture_in_tile(r, e.pos+{0,0,0}, memory.backup_spritesheet, 177, fg1)
+                    render_texture_in_tile(r, e.pos+{0,1,0}, memory.backup_spritesheet, 177, fg1)
+                    render_texture_in_tile(r, e.pos+{2,0,0}, memory.backup_spritesheet, 177, fg1)
+                    render_texture_in_tile(r, e.pos+{1,0,0}, memory.backup_spritesheet, 93 , fg1)
+                    render_texture_in_tile(r, e.pos+{2,1,0}, memory.backup_spritesheet, 39 , fg1)
+                    render_texture_in_tile(r, e.pos+{1,1,0}, memory.backup_spritesheet, 96 , fg1)
+                    render_texture_in_tile(r, e.pos+{0,2,0}, memory.backup_spritesheet, 96 , fg1)
+                    render_texture_in_tile(r, e.pos+{1,2,0}, memory.backup_spritesheet, 34 , fg1)
+                    render_texture_in_tile(r, e.pos+{2,2,0}, memory.backup_spritesheet, 61, fg2)
+
+                }
+
                 render_texture_in_tile(r, e.pos, memory.backup_spritesheet, 79)
             }
-            case .Stone: {
-                fill_tile_with_circle(r, e.pos, stone_grey)
+            case .Material: {
+                color := tree_brown if e.material.type in is_wood else stone_grey
+                fill_tile_with_circle(r, e.pos, color)
             }
-            case .Wood: {
-                fill_tile_with_circle(r, e.pos, tree_brown)
-            }
-            case .Workshop: {
-                background := black
-                fg1 := white
-                fg2 := Color{1, 186.0/255, 0, 1}
 
-                if e.building_status == .PendingMaterialAssignment || e.building_status == .PendingConstruction {
-                    background.a = 0.5
-                    fg1.a = 0.5
-                    fg2.a = 0.5
-                }
-
-                e_def := ENTITY_TABLE[.Workshop]
-                for x in 0..<e_def.dims.x {
-                    for y in 0..<e_def.dims.y {
-                        fill_tile_with_color(r, e.pos+{x,y,0}, background)
-                    }
-                }
-                render_texture_in_tile(r, e.pos+{0,0,0}, memory.backup_spritesheet, 177, fg1)
-                render_texture_in_tile(r, e.pos+{0,1,0}, memory.backup_spritesheet, 177, fg1)
-                render_texture_in_tile(r, e.pos+{2,0,0}, memory.backup_spritesheet, 177, fg1)
-                render_texture_in_tile(r, e.pos+{1,0,0}, memory.backup_spritesheet, 93 , fg1)
-                render_texture_in_tile(r, e.pos+{2,1,0}, memory.backup_spritesheet, 39 , fg1)
-                render_texture_in_tile(r, e.pos+{1,1,0}, memory.backup_spritesheet, 96 , fg1)
-                render_texture_in_tile(r, e.pos+{0,2,0}, memory.backup_spritesheet, 96 , fg1)
-                render_texture_in_tile(r, e.pos+{1,2,0}, memory.backup_spritesheet, 34 , fg1)
-                render_texture_in_tile(r, e.pos+{2,2,0}, memory.backup_spritesheet, 61, fg2)
-
-            }
             }
         }
     }
 
-    /******************************
-     * SEC: Menus and Interaction *
-     ******************************/
+    /**************
+     * SEC: Menus *
+     **************/
 
     {
         hot = NULL_UIID
@@ -304,23 +337,16 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                 if do_button(id, input.mouse, r, memory.font, rect, element.text, element.state == .Depressed) {
                     if menu_name == .MainBar {
                         if element.state == .None {
+                            null_menu_state(&s.menus)
                             element.state = .Depressed
                             s.interaction_mode = InteractionMode(id.element_idx+1)
                             if element.submenu != .Null {
                                 s.menus.menus[element.submenu].visible = true
                             }
-                            for &other in s.menus.elements {
-                                if other.type != .Button || other.id == element.id do continue
-                                other.state = .None
-                            }
                         } else if element.state == .Depressed {
                             // Deactivate the related interaction mode
+                            null_menu_state(&s.menus)
                             s.interaction_mode = .Map
-                            element.state = .None
-                            if element.submenu != .Null {
-                                s.menus.menus[element.submenu].visible = false
-                            }
-
                         }
                     } else if menu_name == .BuildingSelector {
                         if el_idx == 0 {
@@ -328,8 +354,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                                 s.im_building_selection = .Null
                                 element.state = .None
                             } else {
-                                s.im_building_selection = .Workshop
-                                element.state = .Depressed
+                                s.im_building_selection = .StoneMason
+                                s.menus.menus[.BuildingSelector].visible = false
+                                s.interaction_mode = .Build
                             }
                         } else if el_idx == 1 {
                             // CLOSE
@@ -339,6 +366,24 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                             for other_idx in 0..<len(s.menus.menus[.MainBar].element_idx) {
                                 get_element_by_menu_idx(&s.menus, .MainBar, other_idx).state = .None
                             }
+                        }
+                    } else if menu_name == .MaterialSelection {
+                        if el_idx == len(s.im_material_buffer) {
+                            // cancel
+                            delete(s.im_material_buffer)
+                            s.interaction_mode = .Map
+                            null_menu_state(&s.menus)
+                        } else {
+                            chosen_material := s.im_material_buffer[el_idx]
+                            chosen_material.quantity = 1
+                            e_idx := s.im_selected_entity_idx
+                            e := &entities[e_idx]
+                            e.building.made_of[0] = chosen_material
+                            e.building.status = .PendingConstruction
+                            add_order(order_queue, .Construct, e.pos, e_idx)
+                            delete(s.im_material_buffer)
+                            s.interaction_mode = .Map
+                            null_menu_state(&s.menus)
                         }
                     } else if menu_name == .EntityMenu {
                         if el_idx == 1 {
@@ -380,7 +425,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                 if lmb {
                     es := get_entities_at_pos(&s.e, s.hovered_tile)
                     for e_i in es {
-                        if s.e[e_i].type == .Tree {
+                        if s.e[e_i].type == .Building {
                             add_order(order_queue, .CutTree, s.hovered_tile, e_i)
                         }
                     }
@@ -400,7 +445,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                     for x in v_min.x..=v_max.x {
                         for y in v_min.y..=v_max.y {
                             tile := get_map_tile(m, {x,y,v_min.z})
-                            if tile.content == .Filled {
+                            if tile.content.shape == .Solid {
                                 if lmb do tile.order_idx = add_order(order_queue, .Mine, {x,y,v_min.z})
                                 fill_tile_with_color(r, {x,y,v_min.z}, blue)
                             }
@@ -411,7 +456,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
             }
             case .Build: {
                 if s.im_building_selection != .Null {
-                    e_def := ENTITY_TABLE[s.im_building_selection]
+                    e_def := B_PROTOS[s.im_building_selection]
                     for x in 0..<e_def.dims.x {
                         for y in 0..<e_def.dims.y {
                             fill_tile_with_color(r, s.hovered_tile+{x,y,0}, red)
@@ -421,10 +466,13 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 
                 if lmb {
                     if s.im_building_selection != .Null {
+                        s.im_ref_pos = s.hovered_tile
                         idx := building_construction_request(entities, s.im_building_selection, s.hovered_tile)
-                        add_order(order_queue, .Construct, s.hovered_tile, idx)
-                        s.interaction_mode = .EntityInteract
-                        s.im_building_selection = .Null
+                        s.im_selected_entity_idx = idx
+                        s.im_material_buffer = get_construction_materials(s.e[:])
+                        populate_material_selection(&s.menus, s.im_material_buffer)
+                        s.menus.menus[.MaterialSelection].visible = true
+                        s.interaction_mode = .Map
                     }
 
                 }
@@ -432,7 +480,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
             }
         }
     }
-
 
     /*******************
      * SEC: Draw Debug *

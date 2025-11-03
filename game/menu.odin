@@ -6,6 +6,7 @@ MenuName :: enum {
     Null,
     MainBar,
     BuildingSelector,
+    MaterialSelection,
     EntityMenu,
 }
 
@@ -108,7 +109,7 @@ setup_menus :: proc(m:^MenuState) {
     {
         main := &m.menus[.BuildingSelector]
         main.name = .BuildingSelector
-        main.rect = {600, 0, 800, 640}
+        main.rect = {200, 100, 600, 600}
         main.visible = false
         btn_start := Rect{0,0,300,50}
         btn_delta := Rect{0,50,0,50}
@@ -132,6 +133,12 @@ setup_menus :: proc(m:^MenuState) {
         main.rect = {600, 0, 800, 640}
         main.visible = false
     }
+    {
+        main := &m.menus[.MaterialSelection]
+        main.name = .MaterialSelection
+        main.rect = {300, 200, 600, 640}
+        main.visible = false
+    }
 }
 
 populate_entity_menu :: proc(m:^MenuState, e:Entity) {
@@ -143,8 +150,25 @@ populate_entity_menu :: proc(m:^MenuState, e:Entity) {
         rect = btn_start,
         text = fmt.tprint(e.type),
     }
-    btn_start += btn_delta
     add_element(m, .EntityMenu, btn)
+    btn_start += btn_delta
+
+    btn = MenuElement{
+        type = .Text,
+        rect = btn_start,
+        text = fmt.tprint(e.building.status),
+    }
+    add_element(m, .EntityMenu, btn)
+    btn_start += btn_delta
+
+    btn = MenuElement{
+        type = .Text,
+        rect = btn_start,
+        text = fmt.tprint(e.building.deconstruction_percentage),
+    }
+    add_element(m, .EntityMenu, btn)
+    btn_start += btn_delta
+
     btn = MenuElement{
         type = .Button,
         rect = btn_start,
@@ -153,9 +177,43 @@ populate_entity_menu :: proc(m:^MenuState, e:Entity) {
     add_element(m, .EntityMenu, btn)
 }
 
+all_buttons_up :: proc(m:^MenuState, name:MenuName) {
+    for el_i in m.menus[name].element_idx {
+        m.elements[el_i].state = .None
+    }
+}
+
 tear_down_menus :: proc(m:^MenuState) {
     for &men in m.menus {
         delete(men.element_idx)
     }
     delete(m.elements)
+}
+
+null_menu_state :: proc(m:^MenuState) {
+    for &menu in m.menus {
+        if menu.name == .MainBar do continue
+        menu.visible = false
+    }
+    all_buttons_up(m, .MainBar)
+}
+
+populate_material_selection :: proc(m:^MenuState, materials:[]Material) {
+    btn_start := Rect{0,0,300,50}
+    btn_delta := Rect{0,50,0,50}
+    btn : MenuElement
+
+    for mat in materials {
+        btn = MenuElement{
+            type = .Button,
+            rect = btn_start,
+            text = fmt.tprintf("%v (%d)", mat.type, mat.quantity),
+        }
+        add_element(m, .MaterialSelection, btn)
+        btn_start += btn_delta
+    }
+
+    btn.rect = btn_start
+    btn.text = "Cancel"
+    add_element(m, .MaterialSelection, btn)
 }
