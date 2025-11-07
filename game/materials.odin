@@ -13,3 +13,11 @@ Material :: struct {
 is_wood := bit_set[MaterialType] {
     .Wood_Oak,
 }
+
+get_material_in_inventory :: proc(inv:[]Material, type:MaterialType) -> int {
+    count := 0
+    for m in inv {
+        if m.type == type do count += m.quantity
+    }
+    return count
+}

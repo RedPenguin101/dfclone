@@ -21,21 +21,13 @@ B_PROTOS := [BuildingType]BuildingPrototype {
 Building :: struct {
     type : BuildingType,
     status : BuildingStatus,
-    made_of: [3]Material,
     deconstruction_percentage: f32,
 }
 
-make_tree :: proc(mat:MaterialType) -> Building {
-    assert(mat in is_wood)
-    mat := Material{
-        type = .Wood_Oak,
-        form = .Natural,
-        quantity = 3,
-    }
+make_tree :: proc() -> Building {
     building := Building{
         type   = .Tree,
         status = .Normal,
     }
-    building.made_of[0] = mat
     return building
 }

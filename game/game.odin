@@ -62,7 +62,7 @@ GameState :: struct {
     im_selected_entity_idx:int,
     im_toggle:bool,
     im_ref_pos:V3i,
-    im_material_buffer:[]Material,
+    im_temp_entity_buffer:[]int,
 }
 
 GameMemory :: struct {
@@ -144,7 +144,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         add_creature(&s.e, .Dwarf, {5, 10, 1}, fmt.tprint("Iton"))
 
         t := add_entity(&s.e, .Building, {4, 4, 1})
-        tree := make_tree(.Wood_Oak)
+        tree := make_tree()
         s.e[t].building = tree
 
         t = add_entity(&s.e, .Material, {9, 4, 1})
@@ -210,8 +210,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
      * SEC: Entity Loop *
      ********************/
 
-    for &e in s.e {
-	type := e.type
+    for &e, my_idx in s.e {
+        type := e.type
         if type == .Creature {
             if e.current_order_idx == 0 {
                 i, o := get_unassigned_order(order_queue)
@@ -224,6 +224,97 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
             e.action_ticker -= time_delta
             if e.action_ticker < 0 {
                 if e.current_order_idx > 0 {
+                    current_task := &e.creature.task
+                    switch current_task.type {
+                    case .None:  {
+                        order := &order_queue.orders[e.current_order_idx]
+                        switch order.type {
+                        case .Null: {panic("Unreachable")}
+                        case .Mine: {
+                            current_task.type = .MineTile
+                            current_task.loc_1 = order.pos
+                        }
+                        case .CutTree: {
+                            current_task.type = .DeconstructBuilding
+                            current_task.entity_idx_1 = order.target_entity_idx
+                        }
+                        case .Construct: {
+                            b_idx := order.target_entity_idx
+                            b := &entities[b_idx]
+                            switch b.building.status {
+                            case .Null, .PendingMaterialAssignment: panic("unreachable")
+                            case .PendingConstruction: {
+                                // TODO: Extend to buildings with multiple objects in construction
+                                mat_idx := b.inventory[0]
+                                mat := entities[mat_idx]
+                                if mat.in_inventory_of == b_idx {
+                                    current_task.type = .ConstructBuilding
+                                    current_task.entity_idx_1 = b_idx
+                                } else {
+                                    current_task.type = .MoveMaterialFromLocationToEntity
+                                    current_task.entity_idx_1 = mat_idx
+                                    current_task.entity_idx_2 = b_idx
+                                }
+                            }
+                            case .Normal: {
+                                // TODO: if building status is Normal, finish the order
+                            }
+                            case .PendingDeconstruction: {}
+                            }
+                        }
+                        }
+                    }
+                    case .MineTile, .DeconstructBuilding, .MoveMaterialFromEntityToLocation: panic("unimplemented")
+                    case .ConstructBuilding: {
+                        b_idx := current_task.entity_idx_1
+                        building := &entities[b_idx]
+                        building.building.deconstruction_percentage -= 0.2
+                        if building.building.deconstruction_percentage < 0 {
+                            building.building.deconstruction_percentage = 0
+                            building.building.status = .Normal
+                            for m_idx in building.inventory {
+                                entities[m_idx].in_building = b_idx
+                            }
+
+                            complete_order(order_queue, e.current_order_idx)
+                            e.current_order_idx = 0
+                            get_map_tile(m, building.pos).order_idx = 0
+                            current_task = {}
+                        }
+                    }
+                    case .MoveMaterialFromLocationToEntity: {
+                        mat_idx := current_task.entity_idx_1
+                        ety_idx := current_task.entity_idx_2
+                        mat := &entities[mat_idx]
+                        ety := &entities[ety_idx]
+                        target_pos : V3i
+                        picking_up := false
+                        if mat.in_inventory_of == my_idx {
+                            target_pos = ety.pos
+                        } else if mat.in_inventory_of == 0 {
+                            picking_up = true
+                            target_pos = mat.pos
+                        } else do panic("unreachable")
+
+                        if !are_adjacent(e.pos, target_pos) {
+                            dx := 0 if e.pos.x == target_pos.x else 1 if e.pos.x < target_pos.x else -1
+                            dy := 0 if e.pos.y == target_pos.y else 1 if e.pos.y < target_pos.y else -1
+                            e.pos += {dx,dy,0}
+                        } else {
+                            if picking_up {
+                                append(&e.inventory, mat_idx)
+                                mat.in_inventory_of = my_idx
+                            } else {
+                                remove_from_inventory(&e.inventory, mat_idx)
+                                mat.in_inventory_of = ety_idx
+                                append(&ety.inventory, mat_idx)
+                                current_task.type = .None
+                            }
+                        }
+                    }
+                    }
+
+                    /* BEING REPLACED BY TASK BASED APPROACH
                     o := s.oq.orders[e.current_order_idx]
                     target_pos := o.pos
                     if !are_adjacent(e.pos, target_pos) {
@@ -261,6 +352,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                             }
                         }
                     }
+                    */
                 }
                 e.action_ticker += 0.2
             }
@@ -284,9 +376,10 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                     fg2 := Color{1, 186.0/255, 0, 1}
 
                     if e.building.status == .PendingMaterialAssignment || e.building.status == .PendingConstruction {
-                        background.a = 0.5
-                        fg1.a = 0.5
-                        fg2.a = 0.5
+                        alpha := 1-(e.building.deconstruction_percentage/2)
+                        background.a = alpha
+                        fg1.a = alpha
+                        fg2.a = alpha
                     }
 
                     e_def := B_PROTOS[.StoneMason]
@@ -310,8 +403,10 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                 render_texture_in_tile(r, e.pos, memory.backup_spritesheet, 79)
             }
             case .Material: {
-                color := tree_brown if e.material.type in is_wood else stone_grey
-                fill_tile_with_circle(r, e.pos, color)
+                if e.in_inventory_of == 0 && e.in_building == 0 {
+                    color := tree_brown if e.material.type in is_wood else stone_grey
+                    fill_tile_with_circle(r, e.pos, color)
+                }
             }
 
             }
@@ -369,20 +464,22 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                             }
                         }
                     } else if menu_name == .MaterialSelection {
-                        if el_idx == len(s.im_material_buffer) {
+                        if el_idx == len(s.im_temp_entity_buffer) {
                             // cancel
-                            delete(s.im_material_buffer)
+                            delete(s.im_temp_entity_buffer)
                             s.interaction_mode = .Map
                             null_menu_state(&s.menus)
                         } else {
-                            chosen_material := s.im_material_buffer[el_idx]
-                            chosen_material.quantity = 1
                             e_idx := s.im_selected_entity_idx
                             e := &entities[e_idx]
-                            e.building.made_of[0] = chosen_material
                             e.building.status = .PendingConstruction
+                            mat_idx := s.im_temp_entity_buffer[el_idx]
+                            // NOTE: Doesn't actually put the mat in the inv, just a 'placeholder'
+                            // for indicating that the material needs to be fetched to construct the building.
+                            // This is possible a silly idea
+                            append(&e.inventory, mat_idx)
                             add_order(order_queue, .Construct, e.pos, e_idx)
-                            delete(s.im_material_buffer)
+                            delete(s.im_temp_entity_buffer)
                             s.interaction_mode = .Map
                             null_menu_state(&s.menus)
                         }
@@ -471,8 +568,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                         s.im_ref_pos = s.hovered_tile
                         idx := building_construction_request(entities, s.im_building_selection, s.hovered_tile)
                         s.im_selected_entity_idx = idx
-                        s.im_material_buffer = get_construction_materials(s.e[:])
-                        populate_material_selection(&s.menus, s.im_material_buffer)
+                        s.im_temp_entity_buffer = get_construction_materials(s.e[:])
+                        populate_material_selector(&s.menus, entities[:], s.im_temp_entity_buffer)
                         s.menus.menus[.MaterialSelection].visible = true
                         s.interaction_mode = .Map
                     }

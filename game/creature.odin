@@ -13,18 +13,17 @@ Creature :: struct {
 TaskType :: enum {
     None,
 
-    Idle,
-
     MoveMaterialFromLocationToEntity,
     MoveMaterialFromEntityToLocation,
 
     ConstructBuilding,
+    DeconstructBuilding,
     MineTile,
-    CutTree,
 }
 
 Task :: struct {
     type:TaskType,
     entity_idx_1: int,
+    entity_idx_2: int,
     loc_1: V3i,
 }

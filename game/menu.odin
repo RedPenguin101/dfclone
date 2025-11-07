@@ -214,16 +214,17 @@ null_menu_state :: proc(m:^MenuState) {
     all_buttons_up(m, .MainBar)
 }
 
-populate_material_selection :: proc(m:^MenuState, materials:[]Material) {
+populate_material_selector :: proc(m:^MenuState, entities:[]Entity, indices:[]int) {
     btn_start := Rect{0,0,300,50}
     btn_delta := Rect{0,50,0,50}
     btn : MenuElement
 
-    for mat in materials {
+    for idx in indices {
+        type := entities[idx].material.type
         btn = MenuElement{
             type = .Button,
             rect = btn_start,
-            text = fmt.tprintf("%v (%d)", mat.type, mat.quantity),
+            text = fmt.tprintf("%v", type),
         }
         add_element(m, .MaterialSelection, btn)
         btn_start += btn_delta
