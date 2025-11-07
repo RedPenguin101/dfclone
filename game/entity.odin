@@ -15,6 +15,7 @@ Entity :: struct {
     action_ticker : f32,
     building:Building,
     material:Material,
+    creature:Creature,
 }
 
 building_construction_request :: proc(es:^[dynamic]Entity, type:BuildingType, pos:V3i) -> int {
@@ -48,6 +49,17 @@ add_entity :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
 
     }
     return idx
+}
+
+add_creature :: proc(es:^[dynamic]Entity, type:CreatureType, pos:V3i, name:string) -> int {
+    c := Creature{
+        type = type,
+        name = name,
+        task = {},
+    }
+    i := add_entity(es, .Creature, pos)
+    es[i].creature = c
+    return i
 }
 
 E_FREE_STACK : [dynamic]int

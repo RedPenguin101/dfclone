@@ -140,7 +140,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
         s.cam.center = {0,0,1}
         s.m = init_map({20, 20, 3})
         INIT_DUMMY_MAP(&s.m)
-        add_entity(&s.e, .Creature, {5, 10, 1})
+
+        add_creature(&s.e, .Dwarf, {5, 10, 1}, fmt.tprint("Iton"))
 
         t := add_entity(&s.e, .Building, {4, 4, 1})
         tree := make_tree(.Wood_Oak)
@@ -386,7 +387,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                             null_menu_state(&s.menus)
                         }
                     } else if menu_name == .EntityMenu {
-                        if el_idx == 1 {
+                        if el_idx == len(menu.element_idx)-1 // Close is last element
+                        {
                             s.interaction_mode = .Map
                             menu.visible = false
                         }
