@@ -239,7 +239,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 					case .None:  {
 						order := &order_queue.orders[e.current_order_idx]
 						switch order.type {
-						case .Null: {panic("Unreachable")}
+						case .Null: panic("Unreachable")
 						case .Mine: {
 							DBG("New task is mine", order.pos)
 							e.creature.task.type = .MineTile
