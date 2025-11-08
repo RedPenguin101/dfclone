@@ -268,7 +268,8 @@ main :: proc() {
          * update game *
          ***************/
 
-        game_api.update(target_frame_length, game_memory, input, &renderer)
+        running = game_api.update(target_frame_length, game_memory, input, &renderer)
+		if !running do continue
 
         /********
          * Draw *

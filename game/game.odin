@@ -1,4 +1,3 @@
-
 package game
 
 import c "../common"
@@ -127,7 +126,7 @@ game_state_destroy :: proc(memory:^GameMemory) {
 }
 
 @(export)
-game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Renderer) {
+game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Renderer) -> bool {
 
 /*****************
  * SEC: MEM INIT *
@@ -225,8 +224,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 				if i > 0 {
 					e.current_order_idx = i
 					o.status = .Assigned
-					DBG("Entity", my_idx, "Picking up order", o)
-					DBG("(current task", e.creature.task)
 				}
 			}
 
@@ -239,13 +236,16 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 						switch order.type {
 						case .Null: panic("Unreachable")
 						case .Mine: {
-							DBG("New task is mine", order.pos)
 							e.creature.task.type = .MineTile
 							e.creature.task.loc_1 = order.pos
+							reachable := find_path(&s.m, e.pos, order.pos, &e.creature.path)
+							assert(reachable)
 						}
 						case .CutTree, .Deconstruct: {
 							e.creature.task.type = .DeconstructBuilding
 							e.creature.task.entity_idx_1 = order.target_entity_idx
+							reachable := find_path(&s.m, e.pos, order.pos, &e.creature.path)
+							assert(reachable)
 						}
 						case .Construct: {
 							b_idx := order.target_entity_idx
@@ -263,6 +263,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 									e.creature.task.type = .MoveMaterialFromLocationToEntity
 									e.creature.task.entity_idx_1 = mat_idx
 									e.creature.task.entity_idx_2 = b_idx
+									reachable := find_path(&s.m, e.pos, mat.pos, &e.creature.path)
+									assert(reachable)
 								}
 							}
 							case .Normal: {
@@ -275,7 +277,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 						}
 						}
 					}
-					/* SEC: Creature Execute Task */
+			/* SEC: Creature Execute Task */
 					case .MineTile: {
 						target_pos := e.creature.task.loc_1
 						if !are_adjacent(e.pos, target_pos) {
@@ -291,7 +293,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 							entities[i].material = mat
 							e.creature.task.type = .None
 							assert(e.creature.task.type == dbg_dwarf.creature.task.type)
-							DBG("Cleared task", e.creature.task)
 						}
 					}
 					case .DeconstructBuilding:{
@@ -299,9 +300,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 						building := &entities[b_idx]
 						target_pos := building.pos
 						if !are_adjacent(e.pos, target_pos) {
-							dx := 0 if e.pos.x == target_pos.x else 1 if e.pos.x < target_pos.x else -1
-							dy := 0 if e.pos.y == target_pos.y else 1 if e.pos.y < target_pos.y else -1
-							e.pos += {dx,dy,0}
+							e.pos = pop(&e.creature.path)
 						} else {
 							building.building.deconstruction_percentage += 0.2
 							if building.building.deconstruction_percentage > 1 {
@@ -325,9 +324,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 						building := &entities[b_idx]
 						target_pos := building.pos
 						if !are_adjacent(e.pos, target_pos) {
-							dx := 0 if e.pos.x == target_pos.x else 1 if e.pos.x < target_pos.x else -1
-							dy := 0 if e.pos.y == target_pos.y else 1 if e.pos.y < target_pos.y else -1
-							e.pos += {dx,dy,0}
+							e.pos = pop(&e.creature.path)
 						} else {
 							building.building.deconstruction_percentage -= 0.2
 							if building.building.deconstruction_percentage < 0 {
@@ -360,13 +357,12 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 						} else do panic("unreachable")
 
 						if !are_adjacent(e.pos, target_pos) {
-							dx := 0 if e.pos.x == target_pos.x else 1 if e.pos.x < target_pos.x else -1
-							dy := 0 if e.pos.y == target_pos.y else 1 if e.pos.y < target_pos.y else -1
-							e.pos += {dx,dy,0}
+							e.pos = pop(&e.creature.path)
 						} else {
 							if picking_up {
 								append(&e.inventory, mat_idx)
 								mat.in_inventory_of = my_idx
+								reachable := find_path(&s.m, e.pos, ety.pos, &e.creature.path)
 							} else {
 								remove_from_inventory(&e.inventory, mat_idx)
 								mat.in_inventory_of = ety_idx
@@ -640,4 +636,5 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 		dbg(r, fmt.tprintf("IM: %v", s.interaction_mode), memory.font, &idx)
 		dbg(r, fmt.tprintf("IM: %v", s.im_building_selection), memory.font, &idx)
 	}
+	return true
 }
