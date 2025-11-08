@@ -156,11 +156,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 
 		add_creature(entities, .Dwarf, {5, 10, 1}, fmt.tprint("Iton"))
 
-		t := add_entity(entities, .Building, {4, 4, 1})
-		tree := make_tree()
-		entities[t].building = tree
+		tree := add_tree(entities, .Wood_Oak, {4,4,1}, 3)
 
-		t = add_entity(entities, .Material, {9, 4, 1})
+		t := add_entity(entities, .Material, {9, 4, 1})
 		entities[t].material = {
 			type = .Stone_Limestone,
 			form = .Natural,
@@ -270,7 +268,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 							case .Normal: {
 								// TODO: if building status is Normal, finish the order
 							}
-							case .PendingDeconstruction: {}
+							case .PendingDeconstruction: {
+								// TODO: If building has been changed to pending decontruction, finish the task and complete the order
+							}
 							}
 						}
 						}
@@ -294,23 +294,56 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 							DBG("Cleared task", e.creature.task)
 						}
 					}
-					case .DeconstructBuilding, .MoveMaterialFromEntityToLocation: panic("unimplemented")
+					case .DeconstructBuilding:{
+						b_idx := e.creature.task.entity_idx_1
+						building := &entities[b_idx]
+						target_pos := building.pos
+						if !are_adjacent(e.pos, target_pos) {
+							dx := 0 if e.pos.x == target_pos.x else 1 if e.pos.x < target_pos.x else -1
+							dy := 0 if e.pos.y == target_pos.y else 1 if e.pos.y < target_pos.y else -1
+							e.pos += {dx,dy,0}
+						} else {
+							building.building.deconstruction_percentage += 0.2
+							if building.building.deconstruction_percentage > 1 {
+								for material_index in building.inventory {
+									entities[material_index].in_inventory_of = 0
+									entities[material_index].in_building = 0
+									entities[material_index].pos = building.pos
+								}
+								remove_entity(entities, b_idx)
+
+								complete_order(order_queue, e.current_order_idx)
+								e.current_order_idx = 0
+								get_map_tile(m, building.pos).order_idx = 0
+								e.creature.task = {}
+							}
+						}
+					}
+					case .MoveMaterialFromEntityToLocation: panic("unimplemented")
 					case .ConstructBuilding: {
 						b_idx := e.creature.task.entity_idx_1
 						building := &entities[b_idx]
-						building.building.deconstruction_percentage -= 0.2
-						if building.building.deconstruction_percentage < 0 {
-							building.building.deconstruction_percentage = 0
-							building.building.status = .Normal
-							for m_idx in building.inventory {
-								entities[m_idx].in_building = b_idx
-							}
+						target_pos := building.pos
+						if !are_adjacent(e.pos, target_pos) {
+							dx := 0 if e.pos.x == target_pos.x else 1 if e.pos.x < target_pos.x else -1
+							dy := 0 if e.pos.y == target_pos.y else 1 if e.pos.y < target_pos.y else -1
+							e.pos += {dx,dy,0}
+						} else {
+							building.building.deconstruction_percentage -= 0.2
+							if building.building.deconstruction_percentage < 0 {
+								building.building.deconstruction_percentage = 0
+								building.building.status = .Normal
+								for m_idx in building.inventory {
+									entities[m_idx].in_building = b_idx
+								}
 
-							complete_order(order_queue, e.current_order_idx)
-							e.current_order_idx = 0
-							get_map_tile(m, building.pos).order_idx = 0
-							e.creature.task = {}
+								complete_order(order_queue, e.current_order_idx)
+								e.current_order_idx = 0
+								get_map_tile(m, building.pos).order_idx = 0
+								e.creature.task = {}
+							}
 						}
+
 					}
 					case .MoveMaterialFromLocationToEntity: {
 						mat_idx := e.creature.task.entity_idx_1

@@ -23,11 +23,3 @@ Building :: struct {
     status : BuildingStatus,
     deconstruction_percentage: f32,
 }
-
-make_tree :: proc() -> Building {
-    building := Building{
-        type   = .Tree,
-        status = .Normal,
-    }
-    return building
-}

@@ -67,6 +67,21 @@ add_creature :: proc(es:^[dynamic]Entity, type:CreatureType, pos:V3i, name:strin
     return i
 }
 
+add_tree :: proc(es:^[dynamic]Entity, mat:MaterialType, pos:V3i, height:int) -> int {
+	i := add_entity(es, .Building, pos)
+	es[i].building = {.Tree, .Normal, 0}
+
+	for idx in 0..<height {
+		j := add_entity(es, .Material, pos)
+		es[j].material.type = mat
+		es[j].material.form = .Natural
+		es[j].in_building = i
+		append(&es[i].inventory, j)
+	}
+
+	return i
+}
+
 E_FREE_STACK : [dynamic]int
 
 remove_entity :: proc(es:^[dynamic]Entity, idx:int) {
@@ -116,7 +131,7 @@ get_entities_at_pos :: proc(es:^[dynamic]Entity, pos:V3i) -> []int {
 get_construction_materials :: proc(es:[]Entity) -> []int {
     mats := make([dynamic]int)
     for e, i in es {
-        if e.type == .Material {
+        if e.type == .Material && e.in_inventory_of == 0 && e.in_building == 0 {
             append(&mats, i)
         }
     }
