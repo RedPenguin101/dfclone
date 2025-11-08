@@ -243,7 +243,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 							e.creature.task.type = .MineTile
 							e.creature.task.loc_1 = order.pos
 						}
-						case .CutTree: {
+						case .CutTree, .Deconstruct: {
 							e.creature.task.type = .DeconstructBuilding
 							e.creature.task.entity_idx_1 = order.target_entity_idx
 						}
@@ -509,6 +509,13 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 					} else if menu_name == .EntityMenu {
 						if el_idx == len(menu.element_idx)-1 // Close is last element
 						{
+							s.interaction_mode = .Map
+							menu.visible = false
+						}
+						else if el_idx == len(menu.element_idx)-2 // deconstruct
+						{
+							b_idx := s.im_selected_entity_idx
+							add_order(order_queue, .Deconstruct, {0,0,0}, b_idx)
 							s.interaction_mode = .Map
 							menu.visible = false
 						}

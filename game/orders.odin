@@ -1,6 +1,6 @@
 package game
 
-OrderType :: enum { Null, Mine, CutTree, Construct }
+OrderType :: enum { Null, Mine, CutTree, Construct, Deconstruct }
 OrderStatus :: enum { Unassigned, Assigned, Completed }
 
 Order :: struct {

@@ -141,7 +141,50 @@ setup_menus :: proc(m:^MenuState) {
 	}
 }
 
+populate_building_menu :: proc(m:^MenuState, e:Entity) {
+	clear_menu(m, .EntityMenu)
+	btn_start := Rect{0,0,300,50}
+	btn_delta := Rect{0,50,0,50}
+
+	first := fmt.tprint(e.type)
+	second := fmt.tprint(e.building.status)
+	third := fmt.tprint(e.building.deconstruction_percentage)
+
+	btn := MenuElement{
+		type = .Text,
+		rect = btn_start,
+		text = first
+	}
+	add_element(m, .EntityMenu, btn)
+	btn_start += btn_delta
+
+	btn.rect = btn_start
+	btn.text = second
+	add_element(m, .EntityMenu, btn)
+
+	btn_start += btn_delta
+	btn.rect = btn_start
+	btn.text = third
+	add_element(m, .EntityMenu, btn)
+	btn_start += btn_delta
+
+	btn.type = .Button
+	btn.rect = btn_start
+	btn.text = fmt.tprint("DECONSTRUCT")
+	add_element(m, .EntityMenu, btn)
+	btn_start += btn_delta
+
+	btn.rect = btn_start
+	btn.text = fmt.tprint("CLOSE")
+	add_element(m, .EntityMenu, btn)
+	btn_start += btn_delta
+}
+
 populate_entity_menu :: proc(m:^MenuState, e:Entity) {
+	if e.type == .Building {
+		populate_building_menu(m, e)
+		return
+	}
 	clear_menu(m, .EntityMenu)
 	btn_start := Rect{0,0,300,50}
 	btn_delta := Rect{0,50,0,50}
@@ -149,10 +192,7 @@ populate_entity_menu :: proc(m:^MenuState, e:Entity) {
 	first := fmt.tprint(e.type)
 	second : string
 	third : string
-	if e.type == .Building {
-		second = fmt.tprint(e.building.status)
-		third = fmt.tprint(e.building.deconstruction_percentage)
-	} else if e.type == .Creature {
+	if e.type == .Creature {
 		second = fmt.tprint(e.creature.type)
 		third = e.creature.name
 	} else if e.type == .Material {
