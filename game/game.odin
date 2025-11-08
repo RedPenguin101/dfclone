@@ -218,15 +218,19 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
     for &e, my_idx in s.e {
         type := e.type
         if type == .Creature {
+            /* SEC: Creature Pickup Order */
             if e.current_order_idx == 0 {
                 i, o := get_unassigned_order(order_queue)
                 if i > 0 {
                     e.current_order_idx = i
                     o.status = .Assigned
+		    DBG("Entity", my_idx, "Picking up order", o)
+		    DBG("(current task", e.creature.task)
                 }
             }
 
             e.action_ticker -= time_delta
+            /* SEC: Creature Decide new task */
             if e.action_ticker < 0 {
                 if e.current_order_idx > 0 {
                     current_task := &e.creature.task
@@ -236,6 +240,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                         switch order.type {
                         case .Null: {panic("Unreachable")}
                         case .Mine: {
+			    DBG("New task is mine", order.pos)
                             current_task.type = .MineTile
                             current_task.loc_1 = order.pos
                         }
@@ -269,7 +274,25 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                         }
                         }
                     }
-                    case .MineTile, .DeconstructBuilding, .MoveMaterialFromEntityToLocation: panic("unimplemented")
+	    /* SEC: Creature Execute Task */
+                    case .MineTile: {
+			target_pos := current_task.loc_1
+			if !are_adjacent(e.pos, target_pos) {
+                            dx := 0 if e.pos.x == target_pos.x else 1 if e.pos.x < target_pos.x else -1
+                            dy := 0 if e.pos.y == target_pos.y else 1 if e.pos.y < target_pos.y else -1
+                            e.pos += {dx,dy,0}
+                        } else {
+			    mat := mine_tile(m, target_pos)
+                            complete_order(order_queue, e.current_order_idx)
+                            e.current_order_idx = 0
+                            get_map_tile(m, target_pos).order_idx = 0
+                            i := add_entity(&s.e, .Material, target_pos)
+                            s.e[i].material = mat
+			    e.creature.task.type = .None
+			    DBG("Cleared task", e.creature.task)
+			}
+		    }
+		    case .DeconstructBuilding, .MoveMaterialFromEntityToLocation: panic("unimplemented")
                     case .ConstructBuilding: {
                         b_idx := current_task.entity_idx_1
                         building := &entities[b_idx]
@@ -318,46 +341,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
                         }
                     }
                     }
-
-                    /* BEING REPLACED BY TASK BASED APPROACH
-                    o := s.oq.orders[e.current_order_idx]
-                    target_pos := o.pos
-                    if !are_adjacent(e.pos, target_pos) {
-                        dx := 0 if e.pos.x == target_pos.x else 1 if e.pos.x < target_pos.x else -1
-                        dy := 0 if e.pos.y == target_pos.y else 1 if e.pos.y < target_pos.y else -1
-                        e.pos += {dx,dy,0}
-                    } else {
-                        if o.type == .Mine {
-                            // TODO: Encapsulate order completion
-                            mat := mine_tile(m, target_pos)
-                            complete_order(order_queue, e.current_order_idx)
-                            e.current_order_idx = 0
-                            get_map_tile(m, target_pos).order_idx = 0
-                            i := add_entity(&s.e, .Material, target_pos)
-                            s.e[i].material = mat
-                        } else if o.type == .CutTree {
-                            tree := &s.e[o.target_entity_idx]
-                            assert(tree.building.type == .Tree)
-                            fmt.println("desconstructing building", tree.building.deconstruction_percentage)
-                            tree.building.deconstruction_percentage += 0.2
-                            if tree.building.deconstruction_percentage > 1 {
-                                complete_order(order_queue, e.current_order_idx)
-                                e.current_order_idx = 0
-                                get_map_tile(m, target_pos).order_idx = 0
-                                deconstruct_entity(&s.e, o.target_entity_idx)
-                            }
-                        } else if o.type == .Construct {
-                            building := &s.e[o.target_entity_idx]
-                            building.building.deconstruction_percentage -= 0.2
-                            if building.building.deconstruction_percentage < 0 {
-                                building.building.deconstruction_percentage = 0
-                                complete_order(order_queue, e.current_order_idx)
-                                e.current_order_idx = 0
-                                get_map_tile(m, target_pos).order_idx = 0
-                            }
-                        }
-                    }
-                    */
                 }
                 e.action_ticker += 0.2
             }

@@ -1,7 +1,7 @@
-Entities have menus
-Select material on building
-Proper camera and panning
+Reimplement other orders / tasks
 creatures can't move over z levels, better pathfind
-simple sprite sheet
 Change UI rendering to have CM basis
-Multiple types of Stone
+Non-hardcoded map generation
+Proper camera and panning
+
+Basic language features: dictionary for common words
