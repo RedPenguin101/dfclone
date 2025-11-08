@@ -115,8 +115,13 @@ game_state_destroy :: proc(memory:^GameMemory) {
     destroy_order_queue(&memory.game_state.oq)
     tear_down_menus(&memory.game_state.menus)
 
+    for e in memory.game_state.e {
+	delete(e.inventory)
+    }
+
     delete(memory.game_state.e)
     delete(E_FREE_STACK)
+    delete(ME_FREE_STACK)
     free(memory)
 }
 
