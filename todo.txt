@@ -2,6 +2,7 @@ Bug: Crash on lots of mining
 Change UI rendering to have CM basis
 Non-hardcoded map generation
 Proper camera and panning
+Action ticker handling is still not great: Shouldn't pause _after_ finishing mining
 
 Long Term
 ---------
@@ -11,3 +12,4 @@ Check out RexPaint
 2025-11-13
 ----------
 BUG: Can't build 2nd workshop (crash on material selection)
+Bug: creature spends a whole tick finding a valid order. Should loop until either valid order or can't find one

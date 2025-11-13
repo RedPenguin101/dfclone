@@ -17,6 +17,10 @@ V2 :: c.V2
 V2i :: c.V2i
 Rect :: c.Rect
 
+TEMP_MOVE_COST :: 0.25
+TEMP_BUILD_COST :: 1
+TEMP_MINE_COST :: 1
+
 /******************
  * SEC: Constants *
  ******************/
@@ -217,207 +221,222 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
  ********************/
 
 	for &e, my_idx in entities {
-		e.action_ticker -= time_delta
 		type := e.type
 		if type == .Creature {
-			/* SEC: Creature Pickup Order */
-			if e.current_order_idx == 0 {
-				i, o := get_unassigned_order(order_queue)
-				if i > 0 {
-					e.current_order_idx = i
-					INFO("Picked up order", o.type, o.pos)
-					o.status = .Assigned
+			e.action_ticker += time_delta
+			e.action_ticker = min(e.action_ticker, time_delta)
+			MAX_ITS :: 10
+			its := 0
+			for e.action_ticker > 0 && its < MAX_ITS {
+				/* DBG("Action ticker", e.action_ticker, "its", its) */
+				its += 1
+				/* SEC: Creature Pickup Order */
+				if e.current_order_idx == 0 {
+					i, o := get_unassigned_order(order_queue)
+					if i > 0 {
+						e.current_order_idx = i
+						INFO("Picked up order", o.type, o.pos)
+						o.status = .Assigned
+					}
 				}
-			}
 
-			/* SEC: Creature Decide new task */
-			if e.action_ticker < 0 {
-				if e.current_order_idx > 0 {
-					switch e.creature.task.type {
-					case .None:  {
-						order := &order_queue.orders[e.current_order_idx]
-						switch order.type {
-						case .Null: panic("Unreachable")
-						case .Mine: {
-							reachable := find_path(&s.m, e.pos, order.pos, &e.creature.path)
-							if reachable
-							{
-								e.creature.task.type = .MineTile
-								e.creature.task.loc_1 = order.pos
-								DBG("task assign", e.creature.task.type, e.creature.task.loc_1)
-							}
-							else
-							{
-								INFO("Can't reach mining location, looking for another job")
-								e.current_order_idx = 0
-								order.status = .Suspended
-							}
-						}
-						case .CutTree, .Deconstruct: {
-							reachable := find_path(&s.m, e.pos, order.pos, &e.creature.path)
-							if reachable
-							{
-								e.creature.task.type = .DeconstructBuilding
-								e.creature.task.entity_idx_1 = order.target_entity_idx
-								DBG("task assign", e.creature.task.type, e.creature.task.loc_1)
-							}
-							else
-							{
-								e.current_order_idx = 0
-								order.status = .Suspended
-								INFO("Can't reach deconstruction location, looking for another job")
-							}
-						}
-						case .Construct: {
-							b_idx := order.target_entity_idx
-							b := &entities[b_idx]
-							switch b.building.status {
-							case .Null, .PendingMaterialAssignment: panic("unreachable")
-							case .PendingConstruction: {
-								// TODO: Extend to buildings with multiple objects in construction
-								mat_idx := b.inventory[0]
-								mat := entities[mat_idx]
-								if mat.in_inventory_of == b_idx {
-									e.creature.task.type = .ConstructBuilding
-									e.creature.task.entity_idx_1 = b_idx
-								} else {
-									reachable := find_path(&s.m, e.pos, mat.pos, &e.creature.path)
-									if reachable
-									{
-										e.creature.task.type = .MoveMaterialFromLocationToEntity
-										e.creature.task.entity_idx_1 = mat_idx
-										e.creature.task.entity_idx_2 = b_idx
-										DBG("task assign", e.creature.task.type)
-									}
-									else
-									{
-										e.current_order_idx = 0
-										order.status = .Suspended
-										INFO("Can't reach material location, looking for another order")
-									}
-								}
-							}
-							case .Normal: {
-								// TODO: if building status is Normal, finish the order
-							}
-							case .PendingDeconstruction: {
-								// TODO: If building has been changed to pending decontruction, finish the task and complete the order
-							}
-							}
-						}
-						}
+				/* SEC: Creature Decide new task */
+				switch e.creature.task.type {
+				case .None:  {
+					order := &order_queue.orders[e.current_order_idx]
+					switch order.type {
+					case .Null: {
+						// NOTE: Nothing to do, quit out of loop
+						e.action_ticker = 0
+						continue
 					}
-			/* SEC: Creature Execute Task */
-					case .MineTile: {
-						target_pos := e.creature.task.loc_1
-						if !are_adjacent(e.pos, target_pos) {
-							e.pos = pop(&e.creature.path)
-						} else {
-							mat := mine_tile(m, target_pos)
-							DBG("Finished mining", target_pos)
-							complete_order(order_queue, e.current_order_idx)
+					case .Mine: {
+						reachable := find_path(&s.m, e.pos, order.pos, &e.creature.path)
+						if reachable
+						{
+							e.creature.task.type = .MineTile
+							e.creature.task.loc_1 = order.pos
+							DBG("task assign", e.creature.task.type, e.creature.task.loc_1)
+						}
+						else
+						{
+							INFO("Can't reach mining location, looking for another job")
 							e.current_order_idx = 0
-							get_map_tile(m, target_pos).order_idx = 0
-							i := add_entity(entities, .Material, target_pos)
-							entities[i].material = mat
-							e.creature.task.type = .None
-							assert(e.creature.task.type == dbg_dwarf.creature.task.type)
-							make_suspended_mine_orders_available(order_queue)
+							order.status = .Suspended
 						}
 					}
-					case .DeconstructBuilding:{
-						b_idx := e.creature.task.entity_idx_1
-						building := &entities[b_idx]
-						target_pos := building.pos
-						if !are_adjacent(e.pos, target_pos) {
-							e.pos = pop(&e.creature.path)
-						} else {
-							building.building.deconstruction_percentage += 0.2
-							if building.building.deconstruction_percentage > 1 {
-								DBG("Finished deconstructing", target_pos)
-								for material_index in building.inventory {
-									entities[material_index].in_inventory_of = 0
-									entities[material_index].in_building = 0
-									entities[material_index].pos = building.pos
-								}
-								remove_entity(entities, b_idx)
-
-								complete_order(order_queue, e.current_order_idx)
-								e.current_order_idx = 0
-								get_map_tile(m, building.pos).order_idx = 0
-								e.creature.task = {}
-							}
+					case .CutTree, .Deconstruct: {
+						reachable := find_path(&s.m, e.pos, order.pos, &e.creature.path)
+						if reachable
+						{
+							e.creature.task.type = .DeconstructBuilding
+							e.creature.task.entity_idx_1 = order.target_entity_idx
+							DBG("task assign", e.creature.task.type, e.creature.task.loc_1)
+						}
+						else
+						{
+							e.current_order_idx = 0
+							order.status = .Suspended
+							INFO("Can't reach deconstruction location, looking for another job")
 						}
 					}
-					case .MoveMaterialFromEntityToLocation: panic("unimplemented")
-					case .ConstructBuilding: {
-						b_idx := e.creature.task.entity_idx_1
-						building := &entities[b_idx]
-						target_pos := building.pos
-						if !are_adjacent(e.pos, target_pos) {
-							e.pos = pop(&e.creature.path)
-						} else {
-							building.building.deconstruction_percentage -= 0.2
-							if building.building.deconstruction_percentage < 0 {
-								DBG("Finished constructing", target_pos)
-								building.building.deconstruction_percentage = 0
-								building.building.status = .Normal
-								for m_idx in building.inventory {
-									entities[m_idx].in_building = b_idx
-								}
-
-								complete_order(order_queue, e.current_order_idx)
-								e.current_order_idx = 0
-								get_map_tile(m, building.pos).order_idx = 0
-								e.creature.task = {}
-							}
-						}
-
-					}
-					case .MoveMaterialFromLocationToEntity: {
-						mat_idx := e.creature.task.entity_idx_1
-						ety_idx := e.creature.task.entity_idx_2
-						mat := &entities[mat_idx]
-						ety := &entities[ety_idx]
-						target_pos : V3i
-						picking_up := false
-						if mat.in_inventory_of == my_idx {
-							target_pos = ety.pos
-						} else if mat.in_inventory_of == 0 {
-							picking_up = true
-							target_pos = mat.pos
-						} else do panic("unreachable")
-
-						if !are_adjacent(e.pos, target_pos) {
-							e.pos = pop(&e.creature.path)
-						} else {
-							if picking_up {
-								reachable := find_path(&s.m, e.pos, ety.pos, &e.creature.path)
+					case .Construct: {
+						b_idx := order.target_entity_idx
+						b := &entities[b_idx]
+						switch b.building.status {
+						case .Null, .PendingMaterialAssignment: panic("unreachable")
+						case .PendingConstruction: {
+							// TODO: Extend to buildings with multiple objects in construction
+							mat_idx := b.inventory[0]
+							mat := entities[mat_idx]
+							if mat.in_inventory_of == b_idx {
+								e.creature.task.type = .ConstructBuilding
+								e.creature.task.entity_idx_1 = b_idx
+							} else {
+								reachable := find_path(&s.m, e.pos, mat.pos, &e.creature.path)
 								if reachable
 								{
-									append(&e.inventory, mat_idx)
-									mat.in_inventory_of = my_idx
-									DBG("Task step completed", e.creature.task.type)
+									e.creature.task.type = .MoveMaterialFromLocationToEntity
+									e.creature.task.entity_idx_1 = mat_idx
+									e.creature.task.entity_idx_2 = b_idx
+									DBG("task assign", e.creature.task.type)
 								}
 								else
 								{
-									order_queue.orders[e.current_order_idx].status = .Suspended
 									e.current_order_idx = 0
-									INFO("Can't reach construction location, looking for another job")
-									e.creature.task.type = .None
+									order.status = .Suspended
+									INFO("Can't reach material location, looking for another order")
 								}
-							} else {
-								DBG("Task completed", e.creature.task.type)
-								remove_from_inventory(&e.inventory, mat_idx)
-								mat.in_inventory_of = ety_idx
-								append(&ety.inventory, mat_idx)
-								e.creature.task.type = .None
 							}
+						}
+						case .Normal: {
+							// TODO: if building status is Normal, finish the order
+						}
+						case .PendingDeconstruction: {
+							// TODO: If building has been changed to pending decontruction, finish the task and complete the order
+						}
 						}
 					}
 					}
 				}
-				e.action_ticker += 0.2
+					/* SEC: Creature Execute Task */
+				case .MineTile: {
+					target_pos := e.creature.task.loc_1
+					if !are_adjacent(e.pos, target_pos) {
+						e.pos = pop(&e.creature.path)
+						e.action_ticker -= TEMP_MOVE_COST
+					} else {
+						mat := mine_tile(m, target_pos)
+						e.action_ticker -= TEMP_MINE_COST
+						DBG("Finished mining", target_pos)
+						complete_order(order_queue, e.current_order_idx)
+						e.current_order_idx = 0
+						get_map_tile(m, target_pos).order_idx = 0
+						i := add_entity(entities, .Material, target_pos)
+						entities[i].material = mat
+						e.creature.task.type = .None
+						assert(e.creature.task.type == dbg_dwarf.creature.task.type)
+						make_suspended_mine_orders_available(order_queue)
+					}
+				}
+				case .DeconstructBuilding:{
+					b_idx := e.creature.task.entity_idx_1
+					building := &entities[b_idx]
+					target_pos := building.pos
+					if !are_adjacent(e.pos, target_pos) {
+						e.pos = pop(&e.creature.path)
+						e.action_ticker -= TEMP_MOVE_COST
+					} else {
+						building.building.deconstruction_percentage += 0.2
+						e.action_ticker -= TEMP_BUILD_COST
+						if building.building.deconstruction_percentage > 1 {
+							DBG("Finished deconstructing", target_pos)
+							for material_index in building.inventory {
+								entities[material_index].in_inventory_of = 0
+								entities[material_index].in_building = 0
+								entities[material_index].pos = building.pos
+							}
+							remove_entity(entities, b_idx)
+							
+							complete_order(order_queue, e.current_order_idx)
+							e.current_order_idx = 0
+							get_map_tile(m, building.pos).order_idx = 0
+							e.creature.task = {}
+						}
+					}
+				}
+				case .MoveMaterialFromEntityToLocation: panic("unimplemented")
+				case .ConstructBuilding: {
+					b_idx := e.creature.task.entity_idx_1
+					building := &entities[b_idx]
+					target_pos := building.pos
+					if !are_adjacent(e.pos, target_pos) {
+						e.pos = pop(&e.creature.path)
+						e.action_ticker -= TEMP_MOVE_COST
+					} else {
+						building.building.deconstruction_percentage -= 0.2
+						e.action_ticker -= TEMP_BUILD_COST
+						if building.building.deconstruction_percentage < 0 {
+							DBG("Finished constructing", target_pos)
+							building.building.deconstruction_percentage = 0
+							building.building.status = .Normal
+							for m_idx in building.inventory {
+								entities[m_idx].in_building = b_idx
+							}
+							
+							complete_order(order_queue, e.current_order_idx)
+							e.current_order_idx = 0
+							get_map_tile(m, building.pos).order_idx = 0
+							e.creature.task = {}
+						}
+					}
+					
+				}
+				case .MoveMaterialFromLocationToEntity: {
+					mat_idx := e.creature.task.entity_idx_1
+					ety_idx := e.creature.task.entity_idx_2
+					mat := &entities[mat_idx]
+					ety := &entities[ety_idx]
+					target_pos : V3i
+					picking_up := false
+					if mat.in_inventory_of == my_idx {
+						target_pos = ety.pos
+					} else if mat.in_inventory_of == 0 {
+						picking_up = true
+						target_pos = mat.pos
+					} else do panic("unreachable")
+					
+					if !are_adjacent(e.pos, target_pos) {
+						e.pos = pop(&e.creature.path)
+						e.action_ticker -= TEMP_MOVE_COST
+					} else {
+						if picking_up {
+							reachable := find_path(&s.m, e.pos, ety.pos, &e.creature.path)
+							if reachable
+							{
+								e.action_ticker -= TEMP_MOVE_COST
+								append(&e.inventory, mat_idx)
+								mat.in_inventory_of = my_idx
+								DBG("Task step completed", e.creature.task.type)
+							}
+							else
+							{
+								order_queue.orders[e.current_order_idx].status = .Suspended
+								e.current_order_idx = 0
+								INFO("Can't reach construction location, looking for another job")
+								e.creature.task.type = .None
+							}
+						} else {
+							DBG("Task completed", e.creature.task.type)
+							e.action_ticker -= TEMP_MOVE_COST
+							remove_from_inventory(&e.inventory, mat_idx)
+							mat.in_inventory_of = ety_idx
+							append(&ety.inventory, mat_idx)
+							e.creature.task.type = .None
+						}
+					}
+				}
+				}
 			}
 		}
 
