@@ -1,0 +1,1 @@
+2025-11-13	1	Improve pathfinding. Dwarves can only mine squares they can reach. Bugfixes with that.

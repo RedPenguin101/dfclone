@@ -508,7 +508,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 							s.interaction_mode = .Map
 						}
 					} else if menu_name == .BuildingSelector {
-						if el_idx == 0 {
+						if el_idx == 0
+						{
 							if element.state == .Depressed {
 								s.im_building_selection = .Null
 								element.state = .None
@@ -530,6 +531,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 						if el_idx == len(s.im_temp_entity_buffer) {
 							// cancel
 							delete(s.im_temp_entity_buffer)
+							clear_menu(&s.menus, .MaterialSelection)
 							s.interaction_mode = .Map
 							null_menu_state(&s.menus)
 						} else {
@@ -543,6 +545,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 							append(&e.inventory, mat_idx)
 							add_order(order_queue, .Construct, e.pos, e_idx)
 							delete(s.im_temp_entity_buffer)
+							clear_menu(&s.menus, .MaterialSelection)
 							s.interaction_mode = .Map
 							null_menu_state(&s.menus)
 						}

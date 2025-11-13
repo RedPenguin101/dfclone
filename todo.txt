@@ -1,7 +1,13 @@
 Bug: Crash on lots of mining
-BUG: Can't build 2nd workshop (crash on material selection)
 Change UI rendering to have CM basis
 Non-hardcoded map generation
 Proper camera and panning
 
+Long Term
+---------
 Basic language features: dictionary for common words
+Check out RexPaint
+
+2025-11-13
+----------
+BUG: Can't build 2nd workshop (crash on material selection)
