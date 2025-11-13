@@ -2,8 +2,10 @@ package game
 
 import c "../common"
 import "core:fmt"
+import "core:log"
 
-DBG :: fmt.println
+DBG :: log.debug
+INFO :: log.info
 
 GameInput :: c.GameInput
 Renderer :: c.Renderer
@@ -223,6 +225,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 				i, o := get_unassigned_order(order_queue)
 				if i > 0 {
 					e.current_order_idx = i
+					INFO("Picked up order", o.type, o.pos)
 					o.status = .Assigned
 				}
 			}
@@ -236,23 +239,33 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 						switch order.type {
 						case .Null: panic("Unreachable")
 						case .Mine: {
-							e.creature.task.type = .MineTile
-							e.creature.task.loc_1 = order.pos
 							reachable := find_path(&s.m, e.pos, order.pos, &e.creature.path)
-							if !reachable {
+							if reachable
+							{
+								e.creature.task.type = .MineTile
+								e.creature.task.loc_1 = order.pos
+								DBG("task assign", e.creature.task.type, e.creature.task.loc_1)
+							}
+							else
+							{
+								INFO("Can't reach mining location, looking for another job")
 								e.current_order_idx = 0
 								order.status = .Suspended
-								DBG("Can't reach mining location, looking for another job")
 							}
 						}
 						case .CutTree, .Deconstruct: {
-							e.creature.task.type = .DeconstructBuilding
-							e.creature.task.entity_idx_1 = order.target_entity_idx
 							reachable := find_path(&s.m, e.pos, order.pos, &e.creature.path)
-							if !reachable {
+							if reachable
+							{
+								e.creature.task.type = .DeconstructBuilding
+								e.creature.task.entity_idx_1 = order.target_entity_idx
+								DBG("task assign", e.creature.task.type, e.creature.task.loc_1)
+							}
+							else
+							{
 								e.current_order_idx = 0
 								order.status = .Suspended
-								DBG("Can't reach deconstruction location, looking for another job")
+								INFO("Can't reach deconstruction location, looking for another job")
 							}
 						}
 						case .Construct: {
@@ -268,14 +281,19 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 									e.creature.task.type = .ConstructBuilding
 									e.creature.task.entity_idx_1 = b_idx
 								} else {
-									e.creature.task.type = .MoveMaterialFromLocationToEntity
-									e.creature.task.entity_idx_1 = mat_idx
-									e.creature.task.entity_idx_2 = b_idx
 									reachable := find_path(&s.m, e.pos, mat.pos, &e.creature.path)
-									if !reachable {
+									if reachable
+									{
+										e.creature.task.type = .MoveMaterialFromLocationToEntity
+										e.creature.task.entity_idx_1 = mat_idx
+										e.creature.task.entity_idx_2 = b_idx
+										DBG("task assign", e.creature.task.type)
+									}
+									else
+									{
 										e.current_order_idx = 0
 										order.status = .Suspended
-										DBG("Can't reach material location, looking for another job")
+										INFO("Can't reach material location, looking for another order")
 									}
 								}
 							}
@@ -293,11 +311,10 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 					case .MineTile: {
 						target_pos := e.creature.task.loc_1
 						if !are_adjacent(e.pos, target_pos) {
-							dx := 0 if e.pos.x == target_pos.x else 1 if e.pos.x < target_pos.x else -1
-							dy := 0 if e.pos.y == target_pos.y else 1 if e.pos.y < target_pos.y else -1
-							e.pos += {dx,dy,0}
+							e.pos = pop(&e.creature.path)
 						} else {
 							mat := mine_tile(m, target_pos)
+							DBG("Finished mining", target_pos)
 							complete_order(order_queue, e.current_order_idx)
 							e.current_order_idx = 0
 							get_map_tile(m, target_pos).order_idx = 0
@@ -316,6 +333,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 						} else {
 							building.building.deconstruction_percentage += 0.2
 							if building.building.deconstruction_percentage > 1 {
+								DBG("Finished deconstructing", target_pos)
 								for material_index in building.inventory {
 									entities[material_index].in_inventory_of = 0
 									entities[material_index].in_building = 0
@@ -340,6 +358,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 						} else {
 							building.building.deconstruction_percentage -= 0.2
 							if building.building.deconstruction_percentage < 0 {
+								DBG("Finished constructing", target_pos)
 								building.building.deconstruction_percentage = 0
 								building.building.status = .Normal
 								for m_idx in building.inventory {
@@ -377,15 +396,17 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 								{
 									append(&e.inventory, mat_idx)
 									mat.in_inventory_of = my_idx
+									DBG("Task step completed", e.creature.task.type)
 								}
 								else
 								{
 									order_queue.orders[e.current_order_idx].status = .Suspended
 									e.current_order_idx = 0
-									DBG("Can't reach construction location, looking for another job")
+									INFO("Can't reach construction location, looking for another job")
 									e.creature.task.type = .None
 								}
 							} else {
+								DBG("Task completed", e.creature.task.type)
 								remove_from_inventory(&e.inventory, mat_idx)
 								mat.in_inventory_of = ety_idx
 								append(&ety.inventory, mat_idx)

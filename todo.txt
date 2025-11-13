@@ -1,10 +1,9 @@
 Bug: Crash on lots of mining
-BUG: Can't build 2nd workshop
-BUG: dwarf will pick up suspended order
+BUG: Can't build 2nd workshop (crash on material selection)
+BUG: Dwarfs thing they can't reach solid wall - should be exception for tile == end
 creatures are blocked by solid walls. If they can't reach an order, they will move onto the next task
 Change UI rendering to have CM basis
 Non-hardcoded map generation
 Proper camera and panning
-
 
 Basic language features: dictionary for common words
