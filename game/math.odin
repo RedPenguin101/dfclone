@@ -53,3 +53,16 @@ mh_distance :: proc(v,w:V3i) -> int {
     u := v+w
     return u.x+u.y+u.z
 }
+
+get_neighbours :: proc(v:V3i) -> [8]V3i {
+	ret : [8]V3i
+	ret[0] = v + {-1, -1, 0}
+	ret[1] = v + {-1,  0, 0}
+	ret[2] = v + {-1,  1, 0}
+	ret[3] = v + { 0, -1, 0}
+	ret[4] = v + { 0,  1, 0}
+	ret[5] = v + { 1, -1, 0}
+	ret[6] = v + { 1,  0, 0}
+	ret[7] = v + { 1,  1, 0}
+	return ret
+}

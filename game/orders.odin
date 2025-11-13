@@ -60,3 +60,14 @@ get_unassigned_order :: proc(q:^OrderQueue) -> (int, ^Order) {
 complete_order :: proc(q:^OrderQueue, i:int) {
 	unordered_remove(&q.orders, i)
 }
+
+make_suspended_mine_orders_available :: proc(q:^OrderQueue) {
+	// This is a (very inefficient) way of reassessing the reachability of mine
+	// orders after another mine order has been completed, so therefore this order
+	// may now be accessible
+	for &order in q.orders {
+		if order.type == .Mine && order.status == .Suspended {
+			order.status = .Unassigned
+		}
+	}
+}

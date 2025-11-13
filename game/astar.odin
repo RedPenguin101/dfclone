@@ -24,19 +24,6 @@ package game
    - right(i) = (2*i) + 2
 */
 
-get_neighbours :: proc(v:V3i) -> [8]V3i {
-	ret : [8]V3i
-	ret[0] = v + {-1, -1, 0}
-	ret[1] = v + {-1,  0, 0}
-	ret[2] = v + {-1,  1, 0}
-	ret[3] = v + { 0, -1, 0}
-	ret[4] = v + { 0,  1, 0}
-	ret[5] = v + { 1, -1, 0}
-	ret[6] = v + { 1,  0, 0}
-	ret[7] = v + { 1,  1, 0}
-	return ret
-}
-
 Element :: struct {
 	cost:int,
 	v:V3i,
@@ -122,7 +109,13 @@ find_path :: proc(mp:^Map, start, end: V3i, path:^[dynamic]V3i) -> bool {
 
 		for n in next {
 			tile := get_map_tile(mp, n)
-			if tile != nil && tile.content.shape != .Solid
+			if n == end
+			{
+				came_from[n] = current.v
+				found = true
+				break
+			}
+			else if tile != nil && tile.content.shape != .Solid
 			{
 				cost := 1
 				csf, exists := cost_so_far[current.v]
@@ -134,15 +127,6 @@ find_path :: proc(mp:^Map, start, end: V3i, path:^[dynamic]V3i) -> bool {
 					insert(&frontier, Element{priority, n})
 					came_from[n] = current.v
 				}
-
-				if n == end {
-					found = true
-					break
-				}
-			}
-			else
-			{
-				breakpoint()
 			}
 		}
 	}

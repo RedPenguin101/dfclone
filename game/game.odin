@@ -322,6 +322,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 							entities[i].material = mat
 							e.creature.task.type = .None
 							assert(e.creature.task.type == dbg_dwarf.creature.task.type)
+							make_suspended_mine_orders_available(order_queue)
 						}
 					}
 					case .DeconstructBuilding:{
