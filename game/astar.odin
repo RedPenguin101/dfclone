@@ -121,7 +121,7 @@ find_path :: proc(mp:^Map, start, end: V3i, path:^[dynamic]V3i) -> bool {
 
 		for n in next {
 			tile := get_map_tile(mp, n)
-			if true //tile.content.shape != .Solid
+			if tile.content.shape != .Solid
 			{
 				cost := 1
 				csf, exists := cost_so_far[current.v]

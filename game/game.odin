@@ -155,7 +155,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 
 		add_creature(entities, .Dwarf, {5, 10, 1}, fmt.tprint("Iton"))
 
-		tree := add_tree(entities, .Wood_Oak, {4,4,1}, 3)
+		add_tree(entities, .Wood_Oak, {4,4,1}, 3)
 
 		t := add_entity(entities, .Material, {9, 4, 1})
 		entities[t].material = {
@@ -362,7 +362,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 							if picking_up {
 								append(&e.inventory, mat_idx)
 								mat.in_inventory_of = my_idx
-								reachable := find_path(&s.m, e.pos, ety.pos, &e.creature.path)
+								find_path(&s.m, e.pos, ety.pos, &e.creature.path)
+								// TODO: Handle case where goal can't be reached
 							} else {
 								remove_from_inventory(&e.inventory, mat_idx)
 								mat.in_inventory_of = ety_idx

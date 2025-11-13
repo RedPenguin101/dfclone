@@ -4,4 +4,5 @@ Change UI rendering to have CM basis
 Non-hardcoded map generation
 Proper camera and panning
 
+
 Basic language features: dictionary for common words

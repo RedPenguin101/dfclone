@@ -72,7 +72,7 @@ add_tree :: proc(es:^[dynamic]Entity, mat:MaterialType, pos:V3i, height:int) -> 
 	es[i].building = {.Tree, .Normal, 0}
 
 	for idx in 0..<height {
-		j := add_entity(es, .Material, pos)
+		j := add_entity(es, .Material, pos+{0,0,idx})
 		es[j].material.type = mat
 		es[j].material.form = .Natural
 		es[j].in_building = i
