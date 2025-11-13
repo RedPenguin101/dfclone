@@ -1,7 +1,7 @@
 package game
 
 OrderType :: enum { Null, Mine, CutTree, Construct, Deconstruct }
-OrderStatus :: enum { Unassigned, Assigned, Completed }
+OrderStatus :: enum { Unassigned, Assigned, Completed, Suspended }
 
 Order :: struct {
 	type : OrderType,
@@ -56,6 +56,7 @@ get_unassigned_order :: proc(q:^OrderQueue) -> (int, ^Order) {
 	return 0, nil
 }
 
+// TODO: This will probably cause problems with indexes - maybe replace with free list
 complete_order :: proc(q:^OrderQueue, i:int) {
 	unordered_remove(&q.orders, i)
 }

@@ -40,7 +40,11 @@ get_map_tile :: proc(m:^Map, i:V3i) -> ^Tile {
 	dim := m.dim
 	z_stride := dim.x * dim.y
 	y_stride := dim.x
-	return &m.tiles[i.z*z_stride + i.y*y_stride + i.x]
+	idx := i.z*z_stride + i.y*y_stride + i.x
+	if idx < len(m.tiles)-1 {
+		return &m.tiles[idx]
+	}
+	return nil
 }
 
 mine_tile :: proc(m:^Map, i:V3i) -> Material {

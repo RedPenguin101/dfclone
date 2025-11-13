@@ -116,12 +116,13 @@ find_path :: proc(mp:^Map, start, end: V3i, path:^[dynamic]V3i) -> bool {
 	insert(&frontier, {0, start})
 
 	for !found && !is_empty(frontier) && its < MAX_ITERATIONS {
+		its += 1
 		current := heap_pop(&frontier)
 		next := get_neighbours(current.v)
 
 		for n in next {
 			tile := get_map_tile(mp, n)
-			if tile.content.shape != .Solid
+			if tile != nil && tile.content.shape != .Solid
 			{
 				cost := 1
 				csf, exists := cost_so_far[current.v]
@@ -138,6 +139,10 @@ find_path :: proc(mp:^Map, start, end: V3i, path:^[dynamic]V3i) -> bool {
 					found = true
 					break
 				}
+			}
+			else
+			{
+				breakpoint()
 			}
 		}
 	}

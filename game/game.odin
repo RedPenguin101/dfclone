@@ -239,13 +239,21 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 							e.creature.task.type = .MineTile
 							e.creature.task.loc_1 = order.pos
 							reachable := find_path(&s.m, e.pos, order.pos, &e.creature.path)
-							assert(reachable)
+							if !reachable {
+								e.current_order_idx = 0
+								order.status = .Suspended
+								DBG("Can't reach mining location, looking for another job")
+							}
 						}
 						case .CutTree, .Deconstruct: {
 							e.creature.task.type = .DeconstructBuilding
 							e.creature.task.entity_idx_1 = order.target_entity_idx
 							reachable := find_path(&s.m, e.pos, order.pos, &e.creature.path)
-							assert(reachable)
+							if !reachable {
+								e.current_order_idx = 0
+								order.status = .Suspended
+								DBG("Can't reach deconstruction location, looking for another job")
+							}
 						}
 						case .Construct: {
 							b_idx := order.target_entity_idx
@@ -264,7 +272,11 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 									e.creature.task.entity_idx_1 = mat_idx
 									e.creature.task.entity_idx_2 = b_idx
 									reachable := find_path(&s.m, e.pos, mat.pos, &e.creature.path)
-									assert(reachable)
+									if !reachable {
+										e.current_order_idx = 0
+										order.status = .Suspended
+										DBG("Can't reach material location, looking for another job")
+									}
 								}
 							}
 							case .Normal: {
@@ -360,10 +372,19 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput, r:^Rend
 							e.pos = pop(&e.creature.path)
 						} else {
 							if picking_up {
-								append(&e.inventory, mat_idx)
-								mat.in_inventory_of = my_idx
-								find_path(&s.m, e.pos, ety.pos, &e.creature.path)
-								// TODO: Handle case where goal can't be reached
+								reachable := find_path(&s.m, e.pos, ety.pos, &e.creature.path)
+								if reachable
+								{
+									append(&e.inventory, mat_idx)
+									mat.in_inventory_of = my_idx
+								}
+								else
+								{
+									order_queue.orders[e.current_order_idx].status = .Suspended
+									e.current_order_idx = 0
+									DBG("Can't reach construction location, looking for another job")
+									e.creature.task.type = .None
+								}
 							} else {
 								remove_from_inventory(&e.inventory, mat_idx)
 								mat.in_inventory_of = ety_idx
