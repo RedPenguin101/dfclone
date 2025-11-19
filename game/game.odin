@@ -98,6 +98,7 @@ game_state_destroy :: proc(memory:^GameMemory) {
 	destroy_map(&memory.game_state.m)
 	destroy_order_queue(&memory.game_state.oq)
 	tear_down_menus(&memory.game_state.menus)
+	delete(ME_FREE_STACK)
 
 	for e in memory.game_state.e {
 		delete(e.inventory)
@@ -108,7 +109,7 @@ game_state_destroy :: proc(memory:^GameMemory) {
 
 	delete(memory.game_state.e)
 	delete(E_FREE_STACK)
-	delete(ME_FREE_STACK)
+
 	free(memory)
 }
 
@@ -527,7 +528,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							for other_idx in 0..<len(s.menus.menus[.MainBar].element_idx) {
 								get_element_by_menu_idx(&s.menus, .MainBar, other_idx).state = .None
 							}
-						} else if menu_name == .MaterialSelection {
+						}
+					} else if menu_name == .MaterialSelection {
 						if el_idx == len(s.im_temp_entity_buffer) {
 							// cancel
 							delete(s.im_temp_entity_buffer)
@@ -549,7 +551,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							s.interaction_mode = .Map
 							null_menu_state(&s.menus)
 						}
-					}
 					}
 					DBG("button pressed", id)
 				}
@@ -633,7 +634,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						idx := building_construction_request(entities, s.im_building_selection, s.hovered_tile)
 						s.im_selected_entity_idx = idx
 						s.im_temp_entity_buffer = get_construction_materials(entities[:])
-						/* populate_material_selector(&s.menus, entities[:], s.im_temp_entity_buffer) */
+						populate_material_selector(&s.menus, entities[:], s.im_temp_entity_buffer)
 						s.menus.menus[.MaterialSelection].visible = true
 						s.interaction_mode = .Map
 					}

@@ -1,2 +1,2 @@
 2025-11-13	1	Improve pathfinding. Dwarves can only mine squares they can reach. Bugfixes with that.
-2025-11-19	2	Bring in roguelike ascii renderer.
+2025-11-19	2	Switch to roguelike ascii renderer.

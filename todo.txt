@@ -1,4 +1,3 @@
-Reimplement Build function
 Reimplement Entity menu
 Bug: Crash on lots of mining
 Non-hardcoded map generation

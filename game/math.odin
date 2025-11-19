@@ -28,7 +28,7 @@ are_adjacent :: proc(a,b:V3i) -> bool {
 }
 
 in_rect :: proc(v:V2i,r:TileRect) -> bool {
-    return v.x >= r.x && v.x <= r.z && v.y >= r.y && v.y <= r.w
+    return v.x >= r.x && v.x < r.z && v.y >= r.y && v.y < r.w
 }
 
 rect_adjust :: proc(r:TileRect, v:V2i) -> TileRect {

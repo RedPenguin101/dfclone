@@ -106,14 +106,13 @@ setup_menus :: proc(m:^MenuState) {
 		btn.submenu = .Null
 		add_element(m, .MainBar, btn)
 	}
-	/*
 	{
 		main := &m.menus[.BuildingSelector]
 		main.name = .BuildingSelector
-		main.rect = {200, 100, 600, 600}
+		main.rect = {30, 5, 60, 20}
 		main.visible = false
-		btn_start := Rect{0,0,300,50}
-		btn_delta := Rect{0,50,0,50}
+		btn_start := TileRect{0,0,30,1}
+		btn_delta := TileRect{0,1,0,1}
 		btn := MenuElement{
 			type = .Button,
 			rect = btn_start,
@@ -129,15 +128,16 @@ setup_menus :: proc(m:^MenuState) {
 		add_element(m, .BuildingSelector, btn)
 	}
 	{
+		main := &m.menus[.MaterialSelection]
+		main.name = .MaterialSelection
+		main.rect = {30, 5, 60, 20}
+		main.visible = false
+	}
+	/*
+	{
 		main := &m.menus[.EntityMenu]
 		main.name = .EntityMenu
 		main.rect = {600, 0, 800, 640}
-		main.visible = false
-	}
-	{
-		main := &m.menus[.MaterialSelection]
-		main.name = .MaterialSelection
-		main.rect = {300, 200, 600, 640}
 		main.visible = false
 	}
     */
@@ -258,10 +258,9 @@ null_menu_state :: proc(m:^MenuState) {
 	all_buttons_up(m, .MainBar)
 }
 
-/*
 populate_material_selector :: proc(m:^MenuState, entities:[]Entity, indices:[]int) {
-	btn_start := Rect{0,0,300,50}
-	btn_delta := Rect{0,50,0,50}
+	btn_start := TileRect{0,0,30,1}
+	btn_delta := TileRect{0,1,0,1}
 	btn : MenuElement
 
 	for idx in indices {
@@ -279,4 +278,3 @@ populate_material_selector :: proc(m:^MenuState, entities:[]Entity, indices:[]in
 	btn.text = "Cancel"
 	add_element(m, .MaterialSelection, btn)
 }
-*/
