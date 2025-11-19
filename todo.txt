@@ -5,7 +5,6 @@ BUG: pathing can take you OOB of map
 Build item in workshop
 Carpenter workshop
 Right click menus on entity - build item in workshop
-BUG: get_entities_at_pos doesn't work for hover on workshop
 fade up FG color on build
 
 Long Term

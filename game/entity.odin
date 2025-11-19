@@ -31,6 +31,7 @@ building_construction_request :: proc(es:^[dynamic]Entity, type:BuildingType, po
 	}
 	i := add_entity(es, .Building, pos)
 	es[i].building = building
+	es[i].dim = B_PROTOS[type].dims
 	return i
 }
 
