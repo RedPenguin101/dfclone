@@ -1,7 +1,5 @@
 package game
 
-import c "../common"
-
 UIID :: struct {
     menu_idx: int,
     element_idx : int

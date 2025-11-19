@@ -163,6 +163,13 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 
 	dbg_dwarf := &entities[1]
 
+	// clear screen
+	for col in 0..<common.COLS {
+		for row in 0..<common.ROWS {
+			plot_tile({col, row}, black, black, .BLANK)
+		}
+	}
+
 /*******************
  * SEC: DRAW MAP *
  *******************/
@@ -185,7 +192,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				if screen_tile.y < common.ROWS {
 					plot_tile(screen_tile, black, color, .BLANK)
 				}
-				/* fill_tile_with_color(r, {x,y,z_level}, color) */
 			}
 		}
 	}
@@ -435,8 +441,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						fg2.a = alpha
 					}
 
-					e_def := B_PROTOS[.StoneMason]
-
 					plot_tile(flip(e.pos.xy+{0,0}), fg1, background, .X)
 					plot_tile(flip(e.pos.xy+{0,1}), fg1, background, .X)
 					plot_tile(flip(e.pos.xy+{2,0}), fg1, background, .X)
@@ -453,7 +457,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				if e.in_inventory_of == 0 && e.in_building == 0 {
 					color := tree_brown if e.material.type in is_wood else stone_grey
 					plot_tile(flip(e.pos.xy), color, black, .M)
-					/* fill_tile_with_circle(r, e.pos, color) */
 				}
 			}
 
@@ -490,14 +493,14 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 
 		if hot == NULL_UIID {
 			// Hovered Tile render and handling
-			s.hovered_tile = v2_to_v3i((input.mouse.position-{map_start, map_start})/tile_size, s.cam.center.z)
+			s.hovered_tile.x = input.mouse.tile.x
+			s.hovered_tile.y = common.ROWS - input.mouse.tile.y
 			lmb := pressed(input.mouse.lmb)
 
 			switch s.interaction_mode {
 			case .EntityInteract, .Stockpile: {}
 			case .Map: {
-				// TODO: Fix mouse handlin
-				/* plot_tile(s.hovered_tile.xy, black, red, .BLANK) */
+				plot_tile(flip(s.hovered_tile.xy), black, red, .BLANK)
 
 				if lmb {
 					entities_at_cursor := get_entities_at_pos(entities, s.hovered_tile)
@@ -511,7 +514,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				}
 			}
 			case .CutTrees: {
-				/* fill_tile_with_color(r, s.hovered_tile, red) */
+				plot_tile(flip(s.hovered_tile.xy), black, red, .BLANK)
 				if lmb {
 					es := get_entities_at_pos(entities, s.hovered_tile)
 					for e_i in es {
@@ -527,7 +530,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						s.im_toggle = true
 						s.im_ref_pos = s.hovered_tile
 					}
-					/* fill_tile_with_color(r, s.hovered_tile, red) */
+					plot_tile(flip(s.hovered_tile.xy), black, red, .BLANK)
 				} else {
 					v_min := vec_min(s.im_ref_pos, s.hovered_tile)
 					v_max := vec_max(s.im_ref_pos, s.hovered_tile)
@@ -537,7 +540,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							tile := get_map_tile(m, {x,y,v_min.z})
 							if tile.content.shape == .Solid {
 								if lmb do tile.order_idx = add_order(order_queue, .Mine, {x,y,v_min.z})
-								/* fill_tile_with_color(r, {x,y,v_min.z}, blue) */
+								plot_tile(flip({x,y}), black, blue, .BLANK)
 							}
 						}
 					}
@@ -549,7 +552,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					e_def := B_PROTOS[s.im_building_selection]
 					for x in 0..<e_def.dims.x {
 						for y in 0..<e_def.dims.y {
-							/* fill_tile_with_color(r, s.hovered_tile+{x,y,0}, red) */
+							plot_tile(flip(s.hovered_tile.xy+{x,y}), black, red, .BLANK)
 						}
 					}
 				}
