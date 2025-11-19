@@ -3,11 +3,13 @@ Change UI rendering to have CM basis
 Non-hardcoded map generation
 Proper camera and panning
 Action ticker handling is still not great: Shouldn't pause _after_ finishing mining
+Hover menu showing some detail of the entity/ies and tile under cursor
 
 Long Term
 ---------
 Basic language features: dictionary for common words
-Check out RexPaint
+Check out RexPaint for ascii sprite definitions
+Copy Brogue's SDL renderer
 
 2025-11-13
 ----------

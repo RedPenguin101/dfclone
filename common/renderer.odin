@@ -3,6 +3,15 @@ package common
 import la "core:math/linalg"
 dot :: la.dot
 
+ROWS :: 50
+COLS :: 50
+
+Tile :: struct {
+	foreground, background : Color,
+	charIndex : int,
+	has_changed: bool,
+}
+
 Texture :: struct {
     id:      uint,
     width:   int,
@@ -107,7 +116,8 @@ RenderRequest :: struct {
 RenderBasisName :: enum {screen, menus}
 
 Renderer :: struct {
-    queue : [dynamic]RenderRequest,
-    current_basis : RenderBasisName,
-    bases : [RenderBasisName]Basis,
+	queue : [dynamic]RenderRequest,
+	current_basis : RenderBasisName,
+	bases : [RenderBasisName]Basis,
+	tiles : [ROWS][COLS]Tile,
 }
