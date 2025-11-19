@@ -555,6 +555,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							clear_menu(&s.menus, .MaterialSelection)
 							s.interaction_mode = .Map
 							null_menu_state(&s.menus)
+							remove_entity(entities, s.im_selected_entity_idx)
+							s.im_selected_entity_idx = 0
 						} else {
 							e_idx := s.im_selected_entity_idx
 							e := &entities[e_idx]
@@ -603,7 +605,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			switch s.interaction_mode {
 			case .EntityInteract, .Stockpile: {}
 			case .Map: {
-				plot_tile(flip(s.hovered_tile.xy), black, red, .BLANK)
+				// NOTE: Not sure if I want to do hover visibility just in normal map mode
+				/* plot_tile(flip(s.hovered_tile.xy), black, red, .BLANK) */
 
 				if lmb {
 					entities_at_cursor := get_entities_at_pos(entities, s.hovered_tile)
