@@ -23,11 +23,13 @@ Color :: [4]f32
 
 GameUpdateFn :: proc(time_delta:f32, memory:rawptr, input:GameInput) -> bool
 GameInitFn   :: proc(PlatformAPI) -> rawptr
+GameReinitFn   :: proc(PlatformAPI)
 GameDestroyFn :: proc(memory:rawptr)
 
 GameAPI :: struct {
 	update: GameUpdateFn,
 	init: GameInitFn,
+	reinit: GameReinitFn,
 	destroy: GameDestroyFn,
 	lib: dynlib.Library,
 	write_time: os.File_Time,

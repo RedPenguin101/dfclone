@@ -111,6 +111,11 @@ game_state_init :: proc(platform_api:common.PlatformAPI) -> rawptr {
 	return game_memory
 }
 
+@(export)
+reinit :: proc(platform_api:common.PlatformAPI) {
+	plot_tile = platform_api.plot_tile
+}
+
 /* SEC: GS Destroy */
 
 @(export)

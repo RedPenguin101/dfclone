@@ -357,6 +357,7 @@ load_game_library :: proc(api_version:int) -> GameAPI {
 	api := GameAPI {
 		update = cast(common.GameUpdateFn)(dynlib.symbol_address(lib, "game_update")),
 		init = cast(common.GameInitFn)(dynlib.symbol_address(lib, "game_state_init")),
+		reinit = cast(common.GameReinitFn)(dynlib.symbol_address(lib, "reinit")),
 		destroy = cast(common.GameDestroyFn)(dynlib.symbol_address(lib, "game_state_destroy")),
 		lib = lib,
 		write_time = lib_write_time,
@@ -436,7 +437,7 @@ main :: proc() {
 	 *************/
 
 	running := true
-	game_update_hz:f32 = 60.0 // 60FPS
+	game_update_hz:f32 = 30.0 // 60FPS
 	target_seconds_per_frame := 1.0 / game_update_hz
 	last_counter := SDL.GetPerformanceCounter()
 	frame_count := 0
@@ -455,6 +456,7 @@ main :: proc() {
 					api_version += 1
 					log.debug("Loading API version", api_version)
 					game_api = load_game_library(api_version)
+					game_api.reinit(platform_api)
 				}
 				lib_reload_timer = 0
 			}

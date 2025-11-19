@@ -1,12 +1,12 @@
 Non-hardcoded map generation
 Proper camera and panning (Bring back basis xforms? Maybe overkill in this context)
 Action ticker handling is still not great: Shouldn't pause _after_ finishing mining
-BUG: pathing can tak you OOB of map
+BUG: pathing can take you OOB of map
 Build item in workshop
 Carpenter workshop
 Right click menus on entity - build item in workshop
 BUG: get_entities_at_pos doesn't work for hover on workshop
-Reinit gameapi function to call on reloading library - stop segfaulting when trying to plot
+fade up FG color on build
 
 Long Term
 ---------
