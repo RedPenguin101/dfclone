@@ -12,22 +12,20 @@ MenuName :: enum {
 
 ME_FREE_STACK : [dynamic]int
 
-ButtonState :: enum { None, Depressed, }
-
-Rect :: [4]f32
+MenuButtonState :: enum { None, Depressed, }
 
 MenuElement :: struct {
 	id   : UIID,
 	type : ElementType,
-	rect : Rect,
+	rect : TileRect,
 	text : string,
-	state : ButtonState,
+	state : MenuButtonState,
 	submenu : MenuName,
 }
 
 Menu :: struct {
 	name : MenuName,
-	rect : Rect,
+	rect : TileRect,
 	visible: bool,
 	element_idx : [dynamic]int,
 }
@@ -83,31 +81,32 @@ setup_menus :: proc(m:^MenuState) {
 	{
 		main := &m.menus[.MainBar]
 		main.name = .MainBar
-		main.rect = {0, 0, 800, 50}
+		main.rect = {0, 0, COLS-1, 1}
 		main.visible = true
-		btn_start := Rect{0,0,50,50}
-		btn_delta := Rect{50,0,50,0}
+		btn_start := TileRect{0,0,4,1}
+		btn_delta := TileRect{5,0,5,0}
 		btn := MenuElement{
 			type = .Button,
 			rect = btn_start,
-			text = fmt.tprint("M"),
+			text = fmt.tprint("Mine"),
 		}
 		add_element(m, .MainBar, btn)
 
 		btn.rect += btn_delta
-		btn.text = fmt.tprint("T")
+		btn.text = fmt.tprint("Tree")
 		add_element(m, .MainBar, btn)
 
 		btn.rect += btn_delta
-		btn.text = fmt.tprint("B")
+		btn.text = fmt.tprint("Bld")
 		btn.submenu = .BuildingSelector
 		add_element(m, .MainBar, btn)
 
 		btn.rect += btn_delta
-		btn.text = fmt.tprint("S")
+		btn.text = fmt.tprint("Stck")
 		btn.submenu = .Null
 		add_element(m, .MainBar, btn)
 	}
+	/*
 	{
 		main := &m.menus[.BuildingSelector]
 		main.name = .BuildingSelector
@@ -141,8 +140,10 @@ setup_menus :: proc(m:^MenuState) {
 		main.rect = {300, 200, 600, 640}
 		main.visible = false
 	}
+    */
 }
 
+/*
 populate_building_menu :: proc(m:^MenuState, e:Entity) {
 	clear_menu(m, .EntityMenu)
 	btn_start := Rect{0,0,300,50}
@@ -234,6 +235,7 @@ populate_entity_menu :: proc(m:^MenuState, e:Entity) {
 	}
 	add_element(m, .EntityMenu, btn)
 }
+*/
 
 all_buttons_up :: proc(m:^MenuState, name:MenuName) {
 	for el_i in m.menus[name].element_idx {
@@ -256,6 +258,7 @@ null_menu_state :: proc(m:^MenuState) {
 	all_buttons_up(m, .MainBar)
 }
 
+/*
 populate_material_selector :: proc(m:^MenuState, entities:[]Entity, indices:[]int) {
 	btn_start := Rect{0,0,300,50}
 	btn_delta := Rect{0,50,0,50}
@@ -276,3 +279,4 @@ populate_material_selector :: proc(m:^MenuState, entities:[]Entity, indices:[]in
 	btn.text = "Cancel"
 	add_element(m, .MaterialSelection, btn)
 }
+*/

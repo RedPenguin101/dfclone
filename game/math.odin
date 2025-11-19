@@ -27,17 +27,21 @@ are_adjacent :: proc(a,b:V3i) -> bool {
     return abs(a.x-b.x) <= 1 && abs(a.y-b.y) <= 1 && abs(a.z-b.z) <= 1
 }
 
-in_rect :: proc(v:V2,r:Rect) -> bool {
-    return v.x > r.x && v.x <= r.z && v.y > r.y && v.y <= r.w
+in_rect :: proc(v:V2i,r:TileRect) -> bool {
+    return v.x >= r.x && v.x <= r.z && v.y >= r.y && v.y <= r.w
 }
 
-rect_adjust :: proc(r:Rect, v:V2) -> Rect {
-    return Rect{
+rect_adjust :: proc(r:TileRect, v:V2i) -> TileRect {
+    return TileRect{
         r.x+v.x,
         r.y+v.y,
         r.z+v.x,
         r.w+v.y,
     }
+}
+
+rect_dims :: proc(r:TileRect) -> V2i {
+	return {r.z-r.x, r.w-r.y}
 }
 
 vec_min :: proc(v,w:V3i) -> V3i {

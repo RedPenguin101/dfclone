@@ -8,7 +8,10 @@ DBG :: log.debug
 INFO :: log.info
 
 GameInput :: common.GameInput
+ButtonState :: common.ButtonState
 Color :: common.Color
+COLS :: common.COLS
+ROWS :: common.ROWS
 
 TEMP_MOVE_COST :: 0.25
 TEMP_BUILD_COST :: 1
@@ -37,6 +40,13 @@ tree_brown := Color{0.7608, 0.4431, 0.1294, 1}
 /**************************
  * SEC: Gamestate structs *
  **************************/
+
+pressed :: proc(b:ButtonState) -> bool {return b.is_down && !b.was_down}
+held :: proc(b:ButtonState) -> bool {return b.repeat > 30}
+pressed_or_held :: proc(b:ButtonState) -> bool {return pressed(b) || held(b)}
+
+V2i :: [2]int
+TileRect :: [4]int
 
 Camera :: struct {
 	center : V3i,
@@ -481,7 +491,65 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			switch element.type {
 			case .Null: {}
 			case .Button: {
-
+				if do_button(id, plot_tile, input.mouse, rect, element.text, false) {
+					if menu_name == .MainBar {
+						if element.state == .None {
+							null_menu_state(&s.menus)
+							element.state = .Depressed
+							s.interaction_mode = InteractionMode(id.element_idx+1)
+							if element.submenu != .Null {
+								s.menus.menus[element.submenu].visible = true
+							}
+						} else if element.state == .Depressed {
+							// Deactivate the related interaction mode
+							null_menu_state(&s.menus)
+							s.interaction_mode = .Map
+						}
+					} else if menu_name == .BuildingSelector {
+						if el_idx == 0
+						{
+							if element.state == .Depressed {
+								s.im_building_selection = .Null
+								element.state = .None
+							} else {
+								s.im_building_selection = .StoneMason
+								s.menus.menus[.BuildingSelector].visible = false
+								s.interaction_mode = .Build
+							}
+						} else if el_idx == 1 {
+							// CLOSE
+							s.interaction_mode = .Map
+							menu.visible = false
+							s.im_building_selection = .Null
+							for other_idx in 0..<len(s.menus.menus[.MainBar].element_idx) {
+								get_element_by_menu_idx(&s.menus, .MainBar, other_idx).state = .None
+							}
+						} else if menu_name == .MaterialSelection {
+						if el_idx == len(s.im_temp_entity_buffer) {
+							// cancel
+							delete(s.im_temp_entity_buffer)
+							clear_menu(&s.menus, .MaterialSelection)
+							s.interaction_mode = .Map
+							null_menu_state(&s.menus)
+						} else {
+							e_idx := s.im_selected_entity_idx
+							e := &entities[e_idx]
+							e.building.status = .PendingConstruction
+							mat_idx := s.im_temp_entity_buffer[el_idx]
+							// NOTE: Doesn't actually put the mat in the inv, just a 'placeholder'
+							// for indicating that the material needs to be fetched to construct the building.
+							// This is possible a silly idea
+							append(&e.inventory, mat_idx)
+							add_order(order_queue, .Construct, e.pos, e_idx)
+							delete(s.im_temp_entity_buffer)
+							clear_menu(&s.menus, .MaterialSelection)
+							s.interaction_mode = .Map
+							null_menu_state(&s.menus)
+						}
+					}
+					}
+					DBG("button pressed", id)
+				}
 			}
 			case .Text: {
 
@@ -489,12 +557,11 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			}
 		}
 
-		pressed :: proc(btn:common.ButtonState) -> bool {return false}
-
 		if hot == NULL_UIID {
 			// Hovered Tile render and handling
 			s.hovered_tile.x = input.mouse.tile.x
 			s.hovered_tile.y = common.ROWS - input.mouse.tile.y
+			s.hovered_tile.z = s.cam.center.z
 			lmb := pressed(input.mouse.lmb)
 
 			switch s.interaction_mode {
@@ -508,7 +575,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						eidx := entities_at_cursor[0]
 						s.im_selected_entity_idx = eidx
 						s.interaction_mode = .EntityInteract
-						populate_entity_menu(&s.menus, entities[s.im_selected_entity_idx])
+						/* populate_entity_menu(&s.menus, entities[s.im_selected_entity_idx]) */
 						s.menus.menus[.EntityMenu].visible = true
 					}
 				}
@@ -563,7 +630,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						idx := building_construction_request(entities, s.im_building_selection, s.hovered_tile)
 						s.im_selected_entity_idx = idx
 						s.im_temp_entity_buffer = get_construction_materials(entities[:])
-						populate_material_selector(&s.menus, entities[:], s.im_temp_entity_buffer)
+						/* populate_material_selector(&s.menus, entities[:], s.im_temp_entity_buffer) */
 						s.menus.menus[.MaterialSelection].visible = true
 						s.interaction_mode = .Map
 					}

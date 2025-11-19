@@ -1,3 +1,4 @@
+Reimplement menus
 Bug: Crash on lots of mining
 Change UI rendering to have CM basis
 Non-hardcoded map generation
@@ -9,7 +10,6 @@ Long Term
 ---------
 Basic language features: dictionary for common words
 Check out RexPaint for ascii sprite definitions
-Copy Brogue's SDL renderer
 
 2025-11-13
 ----------
