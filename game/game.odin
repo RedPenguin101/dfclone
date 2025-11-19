@@ -551,12 +551,25 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							s.interaction_mode = .Map
 							null_menu_state(&s.menus)
 						}
+					} else if menu_name == .EntityMenu {
+						if el_idx == len(menu.element_idx)-1 // Close is last element
+						{
+							s.interaction_mode = .Map
+							menu.visible = false
+						}
+						else if el_idx == len(menu.element_idx)-2 // deconstruct
+						{
+							b_idx := s.im_selected_entity_idx
+							// TODO: BUG this doesn't work, needs V3i to be set, apparently
+							add_order(order_queue, .Deconstruct, {0,0,0}, b_idx)
+							s.interaction_mode = .Map
+							menu.visible = false
+						}
 					}
-					DBG("button pressed", id)
 				}
 			}
 			case .Text: {
-
+				do_text(id, plot_tile, rect, element.text)
 			}
 			}
 		}
@@ -579,7 +592,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						eidx := entities_at_cursor[0]
 						s.im_selected_entity_idx = eidx
 						s.interaction_mode = .EntityInteract
-						/* populate_entity_menu(&s.menus, entities[s.im_selected_entity_idx]) */
+						populate_entity_menu(&s.menus, entities[s.im_selected_entity_idx])
 						s.menus.menus[.EntityMenu].visible = true
 					}
 				}

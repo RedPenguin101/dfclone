@@ -133,21 +133,19 @@ setup_menus :: proc(m:^MenuState) {
 		main.rect = {30, 5, 60, 20}
 		main.visible = false
 	}
-	/*
 	{
 		main := &m.menus[.EntityMenu]
 		main.name = .EntityMenu
-		main.rect = {600, 0, 800, 640}
+		main.rect = {30, 5, 60, 20}
 		main.visible = false
 	}
-    */
 }
 
-/*
+
 populate_building_menu :: proc(m:^MenuState, e:Entity) {
 	clear_menu(m, .EntityMenu)
-	btn_start := Rect{0,0,300,50}
-	btn_delta := Rect{0,50,0,50}
+	btn_start := TileRect{0,0,30,1}
+	btn_delta := TileRect{0,1,0,1}
 
 	first := fmt.tprint(e.type)
 	second := fmt.tprint(e.building.status)
@@ -189,8 +187,8 @@ populate_entity_menu :: proc(m:^MenuState, e:Entity) {
 		return
 	}
 	clear_menu(m, .EntityMenu)
-	btn_start := Rect{0,0,300,50}
-	btn_delta := Rect{0,50,0,50}
+	btn_start := TileRect{0,0,30,1}
+	btn_delta := TileRect{0,1,0,1}
 
 	first := fmt.tprint(e.type)
 	second : string
@@ -235,7 +233,6 @@ populate_entity_menu :: proc(m:^MenuState, e:Entity) {
 	}
 	add_element(m, .EntityMenu, btn)
 }
-*/
 
 all_buttons_up :: proc(m:^MenuState, name:MenuName) {
 	for el_i in m.menus[name].element_idx {

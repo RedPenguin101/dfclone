@@ -13,6 +13,30 @@ active : UIID
 hot : UIID
 NULL_UIID :: UIID{0,0}
 
+do_text :: proc(id:UIID, plot_fn:common.PlatformPlotTileFn, rect:TileRect, text:string) {
+    rect := rect
+    main :: Color{0.81, 0.81, 0.81, 1}
+    dark_border :: Color{0.51, 0.51, 0.51, 1}
+    light_border :: Color{1,1,1,1}
+
+	dims := rect_dims(rect)
+	l_pad := (dims.x-len(text))/2
+
+	for x in 0..<dims.x {
+		for y in 0..<dims.y {
+			loc := V2i{x+rect.x, y+rect.y}
+			text_x := x-l_pad
+			if text_x >= 0 && text_x < len(text) {
+				rune := text[text_x]
+				glyph := common.DisplayGlyph(int(rune))
+				plot_fn(loc, black, main, glyph)
+			} else {
+				plot_fn(loc, black, main, .BLANK)
+			}
+		}
+	}
+}
+
 do_button :: proc(id:UIID, plot_fn:common.PlatformPlotTileFn, mouse:common.MouseInput, rect:TileRect, text:string, depressed:bool) -> bool {
 	result := false
 
