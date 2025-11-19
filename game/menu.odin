@@ -62,6 +62,7 @@ remove_element :: proc(m:^MenuState, menu_name:MenuName, idx:int) {
 
 clear_menu :: proc(m:^MenuState, menu_name:MenuName) {
 	for el_idx in m.menus[menu_name].element_idx {
+		delete(m.elements[el_idx].text)
 		m.elements[el_idx] = {}
 		append(&ME_FREE_STACK, el_idx)
 	}
@@ -88,21 +89,21 @@ setup_menus :: proc(m:^MenuState) {
 		btn := MenuElement{
 			type = .Button,
 			rect = btn_start,
-			text = fmt.tprint("Mine"),
+			text = fmt.aprint("Mine"),
 		}
 		add_element(m, .MainBar, btn)
 
 		btn.rect += btn_delta
-		btn.text = fmt.tprint("Tree")
+		btn.text = fmt.aprint("Tree")
 		add_element(m, .MainBar, btn)
 
 		btn.rect += btn_delta
-		btn.text = fmt.tprint("Bld")
+		btn.text = fmt.aprint("Bld")
 		btn.submenu = .BuildingSelector
 		add_element(m, .MainBar, btn)
 
 		btn.rect += btn_delta
-		btn.text = fmt.tprint("Stck")
+		btn.text = fmt.aprint("Stck")
 		btn.submenu = .Null
 		add_element(m, .MainBar, btn)
 	}
@@ -116,14 +117,14 @@ setup_menus :: proc(m:^MenuState) {
 		btn := MenuElement{
 			type = .Button,
 			rect = btn_start,
-			text = fmt.tprint("WORKSHOP"),
+			text = fmt.aprint("WORKSHOP"),
 		}
 		btn_start += btn_delta
 		add_element(m, .BuildingSelector, btn)
 		btn = MenuElement{
 			type = .Button,
 			rect = btn_start,
-			text = fmt.tprint("CLOSE"),
+			text = fmt.aprint("CLOSE"),
 		}
 		add_element(m, .BuildingSelector, btn)
 	}
@@ -147,9 +148,9 @@ populate_building_menu :: proc(m:^MenuState, e:Entity) {
 	btn_start := TileRect{0,0,30,1}
 	btn_delta := TileRect{0,1,0,1}
 
-	first := fmt.tprint(e.type)
-	second := fmt.tprint(e.building.status)
-	third := fmt.tprint(e.building.deconstruction_percentage)
+	first := fmt.aprint(e.type)
+	second := fmt.aprint(e.building.status)
+	third := fmt.aprint(e.building.deconstruction_percentage)
 
 	btn := MenuElement{
 		type = .Text,
@@ -171,12 +172,12 @@ populate_building_menu :: proc(m:^MenuState, e:Entity) {
 
 	btn.type = .Button
 	btn.rect = btn_start
-	btn.text = fmt.tprint("DECONSTRUCT")
+	btn.text = fmt.aprint("DECONSTRUCT")
 	add_element(m, .EntityMenu, btn)
 	btn_start += btn_delta
 
 	btn.rect = btn_start
-	btn.text = fmt.tprint("CLOSE")
+	btn.text = fmt.aprint("CLOSE")
 	add_element(m, .EntityMenu, btn)
 	btn_start += btn_delta
 }
@@ -190,14 +191,14 @@ populate_entity_menu :: proc(m:^MenuState, e:Entity) {
 	btn_start := TileRect{0,0,30,1}
 	btn_delta := TileRect{0,1,0,1}
 
-	first := fmt.tprint(e.type)
+	first := fmt.aprint(e.type)
 	second : string
 	third : string
 	if e.type == .Creature {
-		second = fmt.tprint(e.creature.type)
+		second = fmt.aprint(e.creature.type)
 		third = e.creature.name
 	} else if e.type == .Material {
-		second = fmt.tprint(e.material.type)
+		second = fmt.aprint(e.material.type)
 		third = ""
 	}
 
@@ -229,7 +230,7 @@ populate_entity_menu :: proc(m:^MenuState, e:Entity) {
 	btn = MenuElement{
 		type = .Button,
 		rect = btn_start,
-		text = fmt.tprint("CLOSE"),
+		text = fmt.aprint("CLOSE"),
 	}
 	add_element(m, .EntityMenu, btn)
 }
@@ -243,6 +244,9 @@ all_buttons_up :: proc(m:^MenuState, name:MenuName) {
 tear_down_menus :: proc(m:^MenuState) {
 	for &men in m.menus {
 		delete(men.element_idx)
+	}
+	for el in m.elements {
+		delete(el.text)
 	}
 	delete(m.elements)
 }
@@ -265,13 +269,13 @@ populate_material_selector :: proc(m:^MenuState, entities:[]Entity, indices:[]in
 		btn = MenuElement{
 			type = .Button,
 			rect = btn_start,
-			text = fmt.tprintf("%v", type),
+			text = fmt.aprintf("%v", type),
 		}
 		add_element(m, .MaterialSelection, btn)
 		btn_start += btn_delta
 	}
 
 	btn.rect = btn_start
-	btn.text = "Cancel"
+	btn.text = fmt.aprint("Cancel")
 	add_element(m, .MaterialSelection, btn)
 }

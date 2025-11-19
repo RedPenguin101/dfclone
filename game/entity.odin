@@ -86,6 +86,10 @@ E_FREE_STACK : [dynamic]int
 
 remove_entity :: proc(es:^[dynamic]Entity, idx:int) {
 	clear(&es[idx].inventory)
+	if es[idx].type == .Creature {
+		delete(es[idx].creature.path)
+		delete(es[idx].creature.name)
+	}
 	es[idx].type = .Null
 	append(&E_FREE_STACK, idx)
 }

@@ -106,6 +106,7 @@ game_state_destroy :: proc(memory:^GameMemory) {
 		delete(e.inventory)
 		if e.type == .Creature {
 			delete(e.creature.path)
+			delete(e.creature.name)
 		}
 	}
 
@@ -145,7 +146,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		s.m = init_map({20, 20, 3})
 		INIT_DUMMY_MAP(&s.m)
 
-		add_creature(entities, .Dwarf, {5, 10, 1}, fmt.tprint("Iton"))
+		add_creature(entities, .Dwarf, {5, 10, 1}, fmt.aprint("Iton"))
 
 		add_tree(entities, .Wood_Oak, {4,4,1}, 3)
 
