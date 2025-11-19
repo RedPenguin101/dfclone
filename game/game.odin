@@ -491,9 +491,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 
 					if e.building.status == .PendingMaterialAssignment || e.building.status == .PendingConstruction {
 						alpha := 1-(e.building.deconstruction_percentage/2)
-						background.a = alpha
-						fg1.a = alpha
-						fg2.a = alpha
+						fg1 = change_lightness(fg1, alpha)
+						fg2 = change_lightness(fg2, alpha)
 					}
 
 					offset := [9]V2i{{0,0},{0,1},{2,0},{1,0},{2,1},{1,1},{0,2},{1,2},{2,2}}
