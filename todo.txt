@@ -2,7 +2,6 @@ Non-hardcoded map generation
 Proper camera and panning (Bring back basis xforms? Maybe overkill in this context)
 Action ticker handling is still not great: Shouldn't pause _after_ finishing mining
 Hover menu showing some detail of the entity/ies and tile under cursor
-Bug in path finding: dwarves tend to move diagonally. Tweak so diagonals are slightly more expensive
 
 Build item in workshop
 Right click menus on entity - build item in workshop

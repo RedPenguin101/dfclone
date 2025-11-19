@@ -117,7 +117,9 @@ find_path :: proc(mp:^Map, start, end: V3i, path:^[dynamic]V3i) -> bool {
 			}
 			else if tile != nil && tile.content.shape != .Solid
 			{
-				cost := 1
+				mhd := mh_distance(n, current.v)
+				assert(mhd == 1 || mhd == 2)
+				cost := mhd
 				csf, exists := cost_so_far[current.v]
 				new_cost := cost_so_far[current.v] + cost if exists else cost
 				csf, exists = cost_so_far[n]

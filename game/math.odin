@@ -1,5 +1,9 @@
 package game
 
+import "core:math"
+
+abs :: math.abs
+
 V2 :: [2]f32
 V3i :: [3]int
 
@@ -57,8 +61,8 @@ vec_max :: proc(v,w:V3i) -> V3i {
 }
 
 mh_distance :: proc(v,w:V3i) -> int {
-    u := v+w
-    return u.x+u.y+u.z
+    u := v-w
+    return abs(u.x)+abs(u.y)+abs(u.z)
 }
 
 get_neighbours :: proc(v:V3i) -> [8]V3i {
