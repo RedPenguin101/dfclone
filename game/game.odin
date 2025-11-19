@@ -224,6 +224,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
  * SEC: Entity Loop *
  ********************/
 
+	has_creature := make([]bool, COLS*ROWS, context.temp_allocator)
+
 	for &e, my_idx in entities {
 		type := e.type
 		if type == .Creature {
@@ -449,9 +451,12 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			case .Null: {}
 			case .Creature: {
 				plot_tile(flip(e.pos.xy), white, black, .AT)
+				has_creature[e.pos.x + (e.pos.y * COLS)] = true
 			}
 			case .Building: {
-				if e.building.type == .Tree {
+				if has_creature[e.pos.x + (e.pos.y * COLS)] {
+					// do nothing
+				} else if e.building.type == .Tree {
 					plot_tile(flip(e.pos.xy), tree_brown, black, .O)
 				} else if e.building.type == .StoneMason {
 					background := black
@@ -478,7 +483,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				}
 			}
 			case .Material: {
-				if e.in_inventory_of == 0 && e.in_building == 0 {
+				if has_creature[e.pos.x + (e.pos.y * COLS)] {
+					// do nothing
+				} else if e.in_inventory_of == 0 && e.in_building == 0 {
 					color := tree_brown if e.material.type in is_wood else stone_grey
 					plot_tile(flip(e.pos.xy), color, black, .M)
 				}

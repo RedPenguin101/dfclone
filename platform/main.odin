@@ -527,6 +527,7 @@ main :: proc() {
 		/* fmt.printfln("frame %d time %.3f", frame_count, frame_time*1000) */
 
 		last_counter = SDL.GetPerformanceCounter()
+		free_all(context.temp_allocator)
 	}
 
 	SDL.Quit()
