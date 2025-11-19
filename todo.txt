@@ -1,4 +1,3 @@
-Bug: Crash on lots of mining
 Non-hardcoded map generation
 Proper camera and panning (Bring back basis xforms? Maybe overkill in this context)
 Action ticker handling is still not great: Shouldn't pause _after_ finishing mining
@@ -12,8 +11,6 @@ Long Term
 ---------
 Basic language features: dictionary for common words
 Check out RexPaint for ascii sprite definitions
-
-
 
 2025-11-13
 ----------

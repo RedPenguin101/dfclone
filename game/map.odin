@@ -58,7 +58,6 @@ mine_tile :: proc(m:^Map, i:V3i) -> Material {
 	tile.content.shape = .Floor
 
 	neighbours := get_neighbours(i)
-	DBG(neighbours)
 
 	for n in neighbours {
 		get_map_tile(m, n).exposed = true
