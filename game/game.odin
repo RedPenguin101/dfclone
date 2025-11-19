@@ -495,7 +495,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			switch element.type {
 			case .Null: {}
 			case .Button: {
-				if do_button(id, plot_tile, input.mouse, rect, element.text, false) {
+				if do_button(id, plot_tile, input.mouse, rect, element.text, element.state == .Depressed) {
 					if menu_name == .MainBar {
 						if element.state == .None {
 							null_menu_state(&s.menus)

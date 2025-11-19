@@ -16,8 +16,6 @@ NULL_UIID :: UIID{0,0}
 do_text :: proc(id:UIID, plot_fn:common.PlatformPlotTileFn, rect:TileRect, text:string) {
     rect := rect
     main :: Color{0.81, 0.81, 0.81, 1}
-    dark_border :: Color{0.51, 0.51, 0.51, 1}
-    light_border :: Color{1,1,1,1}
 
 	dims := rect_dims(rect)
 	l_pad := (dims.x-len(text))/2
@@ -54,15 +52,12 @@ do_button :: proc(id:UIID, plot_fn:common.PlatformPlotTileFn, mouse:common.Mouse
     }
 
 	main :: Color{0.81, 0.81, 0.81, 1}
-    dark_border :: Color{0.51, 0.51, 0.51, 1}
-    light_border :: Color{1,1,1,1}
-    top_col := light_border
-    btm_col := dark_border
+    dark :: Color{0.51, 0.51, 0.51, 1}
     background := main
     text_col := black
 	if depressed {
-        top_col = dark_border
-        btm_col = light_border
+        background = dark
+		text_col = white
     }
     if id == hot && !depressed {
         background = Color{0,0,0.5,1}
