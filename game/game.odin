@@ -336,9 +336,12 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						DBG("Finished mining", target_pos)
 						complete_order(order_queue, e.current_order_idx)
 						e.current_order_idx = 0
-						get_map_tile(m, target_pos).order_idx = 0
-						i := add_entity(entities, .Material, target_pos)
-						entities[i].material = mat
+						tile := get_map_tile(m, target_pos)
+						tile.order_idx = 0
+						if tile.content.drops {
+							i := add_entity(entities, .Material, target_pos)
+							entities[i].material = mat
+						}
 						e.creature.task.type = .None
 						assert(e.creature.task.type == dbg_dwarf.creature.task.type)
 						make_suspended_mine_orders_available(order_queue)

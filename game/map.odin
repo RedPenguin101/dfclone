@@ -1,5 +1,7 @@
 package game
 
+import "core:math/rand"
+
 Tile :: struct {
 	pos:V3i,
 	content : Terrain,
@@ -29,9 +31,10 @@ INIT_DUMMY_MAP :: proc(m:^Map) {
 			t := get_map_tile(m, {x,y,0})
 			t.content = make_terrain(.Stone_Limestone, .Solid)
 			t.pos = {x,y,1}
+			drops := rand.float32() < 0.3
 			if x > 10 {
 				t = get_map_tile(m, {x,y,1})
-				t.content = make_terrain(.Stone_Limestone, .Solid)
+				t.content = make_terrain(.Stone_Limestone, .Solid, drops)
 				if x == 11 do t.exposed = true
 			}
 		}
