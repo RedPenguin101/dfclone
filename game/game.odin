@@ -12,10 +12,11 @@ ButtonState :: common.ButtonState
 Color :: common.Color
 COLS :: common.COLS
 ROWS :: common.ROWS
+Glyph :: common.DisplayGlyph
 
-TEMP_MOVE_COST :: 0.25
-TEMP_BUILD_COST :: 1
-TEMP_MINE_COST :: 1
+TEMP_MOVE_COST :: 0.1
+TEMP_BUILD_COST :: 0.1
+TEMP_MINE_COST :: 0.1
 
 /******************
  * SEC: Constants *
@@ -93,7 +94,7 @@ write_string_to_screen :: proc(loc:V2i, str:string, text_col, bg_col:Color) {
 		plot_loc := loc+{x, 0}
 		if !in_rect(plot_loc, {0,0,COLS, ROWS}) do continue
 		rune := str[x]
-		glyph := common.DisplayGlyph(int(rune))
+		glyph := Glyph(int(rune))
 		plot_tile(plot_loc, text_col, bg_col, glyph)
 	}
 }
@@ -123,7 +124,6 @@ game_state_destroy :: proc(memory:^GameMemory) {
 	destroy_map(&memory.game_state.m)
 	destroy_order_queue(&memory.game_state.oq)
 	tear_down_menus(&memory.game_state.menus)
-	delete(ME_FREE_STACK)
 
 	for e in memory.game_state.e {
 		delete(e.inventory)
@@ -135,6 +135,7 @@ game_state_destroy :: proc(memory:^GameMemory) {
 
 	delete(memory.game_state.e)
 	delete(E_FREE_STACK)
+	delete(ME_FREE_STACK)
 
 	free(memory)
 }
@@ -220,7 +221,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			for x in 0..<m.dim.x {
 				tile := get_map_tile(m, {x,y,z_level})
 				fg,bg:Color
-				glyph:common.DisplayGlyph
+				glyph:Glyph
 				if tile.order_idx > 0 {
 					glyph = .SIG
 					fg = yellow
@@ -484,7 +485,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					if !has_creature[e.pos.x + (e.pos.y * COLS)] {
 						plot_tile(flip(e.pos.xy), tree_brown, black, .O)
 					}
-				} else if e.building.type == .StoneMason {
+				} else if e.building.type in is_workshop {
 					background := black
 					fg1 := white
 					fg2 := Color{1, 186.0/255, 0, 1}
@@ -495,12 +496,15 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						fg2 = change_lightness(fg2, alpha)
 					}
 
-					offset := [9]V2i{{0,0},{0,1},{2,0},{1,0},{2,1},{1,1},{0,2},{1,2},{2,2}}
-					for o in offset {
+					offset := [9]V2i{{0,2},{1,2},{2,2},
+									 {0,1},{1,1},{2,1},
+									 {0,0},{1,0},{2,0}}
+					glyphs := B_PROTOS[e.building.type].glyphs
+					for o, i in offset {
 						tile := e.pos.xy + o
 						fg := fg2 if o == {2,2} else fg1
 						if !has_creature[tile.x + tile.y*COLS] {
-							plot_tile(flip(tile), fg, background, .X)
+							plot_tile(flip(tile), fg, background, glyphs[i])
 						}
 					}
 				}
@@ -550,23 +554,29 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							s.interaction_mode = .Map
 						}
 					} else if menu_name == .BuildingSelector {
-						if el_idx == 0
-						{
-							if element.state == .Depressed {
-								s.im_building_selection = .Null
-								element.state = .None
-							} else {
-								s.im_building_selection = .StoneMason
-								s.menus.menus[.BuildingSelector].visible = false
-								s.interaction_mode = .Build
-							}
-						} else if el_idx == 1 {
+						if el_idx == len(menu.element_idx)-1 {
 							// CLOSE
 							s.interaction_mode = .Map
 							menu.visible = false
 							s.im_building_selection = .Null
 							for other_idx in 0..<len(s.menus.menus[.MainBar].element_idx) {
 								get_element_by_menu_idx(&s.menus, .MainBar, other_idx).state = .None
+							}
+						} else {
+							if element.state == .Depressed {
+								s.im_building_selection = .Null
+								element.state = .None
+							} else {
+								i := -1
+								c := -1
+								for btype in BuildingType {
+									if btype in is_workshop do i+=1
+									c += 1
+									if i == el_idx do break
+								}
+								s.im_building_selection = BuildingType(c)
+								s.menus.menus[.BuildingSelector].visible = false
+								s.interaction_mode = .Build
 							}
 						}
 					} else if menu_name == .MaterialSelection {

@@ -114,13 +114,19 @@ setup_menus :: proc(m:^MenuState) {
 		main.visible = false
 		btn_start := TileRect{0,0,30,1}
 		btn_delta := TileRect{0,1,0,1}
-		btn := MenuElement{
-			type = .Button,
-			rect = btn_start,
-			text = fmt.aprint("WORKSHOP"),
+
+		btn : MenuElement
+
+		for buildable in is_workshop {
+			btn = MenuElement{
+				type = .Button,
+				rect = btn_start,
+				text = fmt.aprint(buildable),
+			}
+			btn_start += btn_delta
+			add_element(m, .BuildingSelector, btn)
 		}
-		btn_start += btn_delta
-		add_element(m, .BuildingSelector, btn)
+
 		btn = MenuElement{
 			type = .Button,
 			rect = btn_start,

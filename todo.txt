@@ -3,9 +3,11 @@ Proper camera and panning (Bring back basis xforms? Maybe overkill in this conte
 Action ticker handling is still not great: Shouldn't pause _after_ finishing mining
 BUG: pathing can take you OOB of map
 Build item in workshop
-Carpenter workshop
 Right click menus on entity - build item in workshop
-fade up FG color on build
+Better glyph choice for materials
+workshop colors should be based on the material they are made of
+escape exits back to map mode, always
+proper time costs for building, mining, moving
 
 Long Term
 ---------
