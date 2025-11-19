@@ -1,4 +1,5 @@
-Reimplement Entity menu
+order entity draws so creatures are on top of materials/buildings
+mining only has a 30% chance of dropping stone
 Bug: Crash on lots of mining
 Non-hardcoded map generation
 Proper camera and panning (Bring back basis xforms? Maybe overkill in this context)

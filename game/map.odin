@@ -4,6 +4,7 @@ Tile :: struct {
 	pos:V3i,
 	content : Terrain,
 	order_idx:int,
+	exposed:bool,
 }
 
 Map :: struct {
@@ -31,6 +32,7 @@ INIT_DUMMY_MAP :: proc(m:^Map) {
 			if x > 10 {
 				t = get_map_tile(m, {x,y,1})
 				t.content = make_terrain(.Stone_Limestone, .Solid)
+				if x == 11 do t.exposed = true
 			}
 		}
 	}
@@ -51,5 +53,13 @@ mine_tile :: proc(m:^Map, i:V3i) -> Material {
 	tile := get_map_tile(m, i)
 	assert(tile.content.shape == .Solid)
 	tile.content.shape = .Floor
+
+	neighbours := get_neighbours(i)
+	DBG(neighbours)
+
+	for n in neighbours {
+		get_map_tile(m, n).exposed = true
+	}
+
 	return tile.content.made_of
 }

@@ -30,8 +30,10 @@ tile_size :: 0.04
 black := Color{0,0,0,1}
 white := Color{1,1,1,1}
 red   := Color{1,0,0,1}
-green := Color{0,1,0,1}
+green := Color{122.0/255,226.0/255,125.0/255,1}
 blue  := Color{0,0,1,1}
+yellow := Color{1,1,0,1}
+grey := Color{0.3,0.3,0.3,1}
 pink  := Color{ 1, 109.0/255, 194.0/255, 1 }
 
 stone_grey := Color{0.6,0.6,0.6,1}
@@ -194,17 +196,25 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		for y in 0..<m.dim.y {
 			for x in 0..<m.dim.x {
 				tile := get_map_tile(m, {x,y,z_level})
-				color:Color
+				fg,bg:Color
+				glyph:common.DisplayGlyph
 				if tile.order_idx > 0 {
-					color = black
+					glyph = .SIG
+					fg = yellow
+					bg = grey
 				} else if tile.content.shape == .Solid {
-					color = stone_grey
+					if tile.exposed {
+						bg = stone_grey
+						fg = Color{136.0/255,136.0/255,61.0/255,1}
+						glyph = .PERCENT
+					}
 				} else {
-					color = green
+					fg = green
+					glyph = .D_QUOTE
 				}
 				screen_tile := flip({x,y})
 				if screen_tile.y < common.ROWS {
-					plot_tile(screen_tile, black, color, .BLANK)
+					plot_tile(screen_tile, fg, bg, glyph)
 				}
 			}
 		}
@@ -438,7 +448,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			switch e.type {
 			case .Null: {}
 			case .Creature: {
-				plot_tile(flip(e.pos.xy), white, blue, .AT)
+				plot_tile(flip(e.pos.xy), white, black, .AT)
 			}
 			case .Building: {
 				if e.building.type == .Tree {
