@@ -1,5 +1,8 @@
 package game
 
+V2 :: [2]f32
+V3i :: [3]int
+
 v2_to_v3i :: proc(v:V2, z:=0) -> V3i {
     return {int(v.x), int(v.y), z}
 }

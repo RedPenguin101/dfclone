@@ -14,6 +14,8 @@ ME_FREE_STACK : [dynamic]int
 
 ButtonState :: enum { None, Depressed, }
 
+Rect :: [4]f32
+
 MenuElement :: struct {
 	id   : UIID,
 	type : ElementType,

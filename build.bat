@@ -1,6 +1,6 @@
 echo WAITING FOR PDB > ./build/lock.tmp
 
-odin build game -build-mode:dll -out:./build/game.dll -debug -vet
+odin build game -build-mode:dll -out:./build/game.dll -debug
 
 cd build
 del lock.tmp
