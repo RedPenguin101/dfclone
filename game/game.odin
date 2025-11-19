@@ -655,7 +655,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					e_def := B_PROTOS[s.im_building_selection]
 					for x in 0..<e_def.dims.x {
 						for y in 0..<e_def.dims.y {
-							plot_tile(flip(s.hovered_tile.xy+{x,y}), black, red, .BLANK)
+							tile := s.hovered_tile.xy + {x,y}
+							if !in_rect(tile, {0,0,COLS,ROWS}) do continue
+							plot_tile(flip(tile), black, red, .BLANK)
 						}
 					}
 				}
