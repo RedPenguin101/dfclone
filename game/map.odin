@@ -28,13 +28,13 @@ destroy_map :: proc(m:^Map) {
 INIT_DUMMY_MAP :: proc(m:^Map) {
 	for y in 0..<m.dim.y {
 		for x in 0..<m.dim.x {
-			t := get_map_tile(m, {x,y,0})
-			t.content = make_terrain(.Stone_Limestone, .Solid)
+			t := get_map_tile(m, {x,y,1})
 			t.pos = {x,y,1}
-			drops := rand.float32() < 0.3
-			if x > 10 {
-				t = get_map_tile(m, {x,y,1})
-				t.content = make_terrain(.Stone_Limestone, .Solid, drops)
+			if x <= 10 {
+				t.content = make_terrain(.Stone_Limestone, .Floor)
+			} else {
+				drops := rand.float32() < 0.3
+				t.content = make_terrain(.Stone_Limestone, .Wall, drops)
 				if x == 11 do t.exposed = true
 			}
 		}
@@ -54,7 +54,7 @@ get_map_tile :: proc(m:^Map, i:V3i) -> ^Tile {
 
 mine_tile :: proc(m:^Map, i:V3i) -> Material {
 	tile := get_map_tile(m, i)
-	assert(tile.content.shape == .Solid)
+	assert(tile.content.shape == .Wall)
 	tile.content.shape = .Floor
 
 	neighbours := get_neighbours(i)

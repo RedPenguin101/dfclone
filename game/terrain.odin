@@ -1,6 +1,6 @@
 package game
 
-TerrainShape :: enum { Nothing, Solid, Ramp, Stair, Floor }
+TerrainShape :: enum { Nothing, Wall, Ramp, Stair, Floor }
 
 Terrain :: struct {
     made_of: Material,

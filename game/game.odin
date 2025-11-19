@@ -43,6 +43,8 @@ tree_brown := Color{0.7608, 0.4431, 0.1294, 1}
  * SEC: Gamestate structs *
  **************************/
 
+plot_tile : common.PlatformPlotTileFn
+
 pressed :: proc(b:ButtonState) -> bool {return b.is_down && !b.was_down}
 held :: proc(b:ButtonState) -> bool {return b.repeat > 30}
 pressed_or_held :: proc(b:ButtonState) -> bool {return pressed(b) || held(b)}
@@ -82,6 +84,21 @@ GameMemory :: struct {
 	platform : common.PlatformAPI,
 }
 
+/********************
+ * Render Utilities *
+ ********************/
+
+write_string_to_screen :: proc(loc:V2i, str:string, text_col, bg_col:Color) {
+	for x in 0..<len(str) {
+		plot_loc := loc+{x, 0}
+		if !in_rect(plot_loc, {0,0,COLS, ROWS}) do continue
+		rune := str[x]
+		glyph := common.DisplayGlyph(int(rune))
+		plot_tile(plot_loc, text_col, bg_col, glyph)
+	}
+}
+
+
 /**********************
  * Game API functions *
  **********************/
@@ -90,6 +107,7 @@ GameMemory :: struct {
 game_state_init :: proc(platform_api:common.PlatformAPI) -> rawptr {
 	game_memory := new(GameMemory)
 	game_memory.platform = platform_api
+	plot_tile = platform_api.plot_tile
 	return game_memory
 }
 
@@ -127,7 +145,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 	m := &s.m
 	entities := &s.e
 	order_queue := &s.oq
-	plot_tile := memory.platform.plot_tile
 	flip :: proc(tile:[2]int) -> [2]int {
 		t := tile
 		t.y = common.ROWS - t.y
@@ -203,7 +220,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					glyph = .SIG
 					fg = yellow
 					bg = grey
-				} else if tile.content.shape == .Solid {
+				} else if tile.content.shape == .Wall {
 					if tile.exposed {
 						bg = stone_grey
 						fg = Color{136.0/255,136.0/255,61.0/255,1}
@@ -514,7 +531,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			switch element.type {
 			case .Null: {}
 			case .Button: {
-				if do_button(id, plot_tile, input.mouse, rect, element.text, element.state == .Depressed) {
+				if do_button(id, input.mouse, rect, element.text, element.state == .Depressed) {
 					if menu_name == .MainBar {
 						if element.state == .None {
 							null_menu_state(&s.menus)
@@ -590,7 +607,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				}
 			}
 			case .Text: {
-				do_text(id, plot_tile, rect, element.text)
+				do_text(id, rect, element.text)
 			}
 			}
 		}
@@ -608,8 +625,28 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				// NOTE: Not sure if I want to do hover visibility just in normal map mode
 				/* plot_tile(flip(s.hovered_tile.xy), black, red, .BLANK) */
 
+				tile := get_map_tile(m, s.hovered_tile)
+				entities_at_cursor := get_entities_at_pos(entities, s.hovered_tile)
+				y_start := 1
+				if tile.content.shape != .Wall || tile.exposed {
+					write_string_to_screen({0,y_start}, fmt.tprint(tile.content.made_of.type, tile.content.shape), white, black)
+					y_start += 1
+				}
+
+				for e, i in entities_at_cursor {
+					entity := entities[e]
+					str : string
+					if entity.type == .Creature {
+						str = fmt.tprint(entity.creature.type, entity.creature.name)
+					} else if entity.type == .Building {
+						str = fmt.tprint(entity.building.type)
+					} else if entity.type == .Material {
+						str = fmt.tprint(entity.material.type)
+					}
+					write_string_to_screen({0, y_start+i}, str, yellow, black)
+				}
+
 				if lmb {
-					entities_at_cursor := get_entities_at_pos(entities, s.hovered_tile)
 					if len(entities_at_cursor) > 0 {
 						eidx := entities_at_cursor[0]
 						s.im_selected_entity_idx = eidx
@@ -644,7 +681,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					for x in v_min.x..=v_max.x {
 						for y in v_min.y..=v_max.y {
 							tile := get_map_tile(m, {x,y,v_min.z})
-							if tile.content.shape == .Solid {
+							if tile.content.shape == .Wall {
 								if lmb do tile.order_idx = add_order(order_queue, .Mine, {x,y,v_min.z})
 								plot_tile(flip({x,y}), black, blue, .BLANK)
 							}
@@ -660,7 +697,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						for y in 0..<e_def.dims.y {
 							tile := s.hovered_tile.xy + {x,y}
 							if !in_rect(tile, {0,0,COLS,ROWS}) do continue
-							plot_tile(flip(tile), black, red, .BLANK)
+							plot_tile(flip(tile), white, black, .X)
 						}
 					}
 				}

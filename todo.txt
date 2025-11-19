@@ -1,17 +1,14 @@
 Non-hardcoded map generation
 Proper camera and panning (Bring back basis xforms? Maybe overkill in this context)
 Action ticker handling is still not great: Shouldn't pause _after_ finishing mining
-Hover menu showing some detail of the entity/ies and tile under cursor
-
+BUG: pathing can tak you OOB of map
 Build item in workshop
+Carpenter workshop
 Right click menus on entity - build item in workshop
+BUG: get_entities_at_pos doesn't work for hover on workshop
+Reinit gameapi function to call on reloading library - stop segfaulting when trying to plot
 
 Long Term
 ---------
 Basic language features: dictionary for common words
 Check out RexPaint for ascii sprite definitions
-
-2025-11-13
-----------
-BUG: Can't build 2nd workshop (crash on material selection)
-Bug: creature spends a whole tick finding a valid order. Should loop until either valid order or can't find one

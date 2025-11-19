@@ -13,7 +13,7 @@ active : UIID
 hot : UIID
 NULL_UIID :: UIID{0,0}
 
-do_text :: proc(id:UIID, plot_fn:common.PlatformPlotTileFn, rect:TileRect, text:string) {
+do_text :: proc(id:UIID, rect:TileRect, text:string) {
     rect := rect
     main :: Color{0.81, 0.81, 0.81, 1}
 
@@ -27,15 +27,15 @@ do_text :: proc(id:UIID, plot_fn:common.PlatformPlotTileFn, rect:TileRect, text:
 			if text_x >= 0 && text_x < len(text) {
 				rune := text[text_x]
 				glyph := common.DisplayGlyph(int(rune))
-				plot_fn(loc, black, main, glyph)
+				plot_tile(loc, black, main, glyph)
 			} else {
-				plot_fn(loc, black, main, .BLANK)
+				plot_tile(loc, black, main, .BLANK)
 			}
 		}
 	}
 }
 
-do_button :: proc(id:UIID, plot_fn:common.PlatformPlotTileFn, mouse:common.MouseInput, rect:TileRect, text:string, depressed:bool) -> bool {
+do_button :: proc(id:UIID, mouse:common.MouseInput, rect:TileRect, text:string, depressed:bool) -> bool {
 	result := false
 
 	if in_rect(mouse.tile, rect) {
@@ -74,9 +74,9 @@ do_button :: proc(id:UIID, plot_fn:common.PlatformPlotTileFn, mouse:common.Mouse
 			if text_x >= 0 && text_x < len(text) {
 				rune := text[text_x]
 				glyph := common.DisplayGlyph(int(rune))
-				plot_fn(loc, text_col, background, glyph)
+				plot_tile(loc, text_col, background, glyph)
 			} else {
-				plot_fn(loc, text_col, background, .BLANK)
+				plot_tile(loc, text_col, background, .BLANK)
 			}
 		}
 	}

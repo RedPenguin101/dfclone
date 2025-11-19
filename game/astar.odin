@@ -115,7 +115,7 @@ find_path :: proc(mp:^Map, start, end: V3i, path:^[dynamic]V3i) -> bool {
 				found = true
 				break
 			}
-			else if tile != nil && tile.content.shape != .Solid
+			else if tile != nil && tile.content.shape != .Wall
 			{
 				mhd := mh_distance(n, current.v)
 				assert(mhd == 1 || mhd == 2)

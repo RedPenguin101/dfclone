@@ -142,7 +142,6 @@ setup_menus :: proc(m:^MenuState) {
 	}
 }
 
-
 populate_building_menu :: proc(m:^MenuState, e:Entity) {
 	clear_menu(m, .EntityMenu)
 	btn_start := TileRect{0,0,30,1}
