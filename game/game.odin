@@ -101,6 +101,9 @@ game_state_destroy :: proc(memory:^GameMemory) {
 
 	for e in memory.game_state.e {
 		delete(e.inventory)
+		if e.type == .Creature {
+			delete(e.creature.path)
+		}
 	}
 
 	delete(memory.game_state.e)
