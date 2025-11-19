@@ -457,10 +457,10 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				has_creature[e.pos.x + (e.pos.y * COLS)] = true
 			}
 			case .Building: {
-				if has_creature[e.pos.x + (e.pos.y * COLS)] {
-					// do nothing
-				} else if e.building.type == .Tree {
-					plot_tile(flip(e.pos.xy), tree_brown, black, .O)
+				if e.building.type == .Tree {
+					if !has_creature[e.pos.x + (e.pos.y * COLS)] {
+						plot_tile(flip(e.pos.xy), tree_brown, black, .O)
+					}
 				} else if e.building.type == .StoneMason {
 					background := black
 					fg1 := white
@@ -473,16 +473,14 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						fg2.a = alpha
 					}
 
-					plot_tile(flip(e.pos.xy+{0,0}), fg1, background, .X)
-					plot_tile(flip(e.pos.xy+{0,1}), fg1, background, .X)
-					plot_tile(flip(e.pos.xy+{2,0}), fg1, background, .X)
-					plot_tile(flip(e.pos.xy+{1,0}), fg1, background, .X)
-					plot_tile(flip(e.pos.xy+{2,1}), fg1, background, .X)
-					plot_tile(flip(e.pos.xy+{1,1}), fg1, background, .X)
-					plot_tile(flip(e.pos.xy+{0,2}), fg1, background, .X)
-					plot_tile(flip(e.pos.xy+{1,2}), fg1, background, .X)
-					plot_tile(flip(e.pos.xy+{2,2}), fg2, background, .X)
-
+					offset := [9]V2i{{0,0},{0,1},{2,0},{1,0},{2,1},{1,1},{0,2},{1,2},{2,2}}
+					for o in offset {
+						tile := e.pos.xy + o
+						fg := fg2 if o == {2,2} else fg1
+						if !has_creature[tile.x + tile.y*COLS] {
+							plot_tile(flip(tile), fg, background, .X)
+						}
+					}
 				}
 			}
 			case .Material: {
