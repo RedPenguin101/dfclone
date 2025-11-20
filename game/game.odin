@@ -54,8 +54,24 @@ V2i :: [2]int
 TileRect :: [4]int
 
 Camera :: struct {
-	center : V3i,
+	focus  : V3i,
 	dims   : V3i,
+}
+
+camera_xform :: proc(cam:Camera, tile:V3i) -> (on_screen:bool, screen_tile:V2i) {
+	// takes a map tile location and transforms it the screen tile location
+	if tile.z != cam.focus.z do return false, {}
+
+	rect := tile_rect_from_center_and_dim(cam.focus.xy, cam.dims.xy)
+
+	if !in_rect(tile.xy, rect) do return false, {}
+
+	x_form_tile := tile.xy-rect.xy
+	x_form_tile.y *= -1
+	x_form_tile.y += ROWS
+
+	if !in_rect(x_form_tile, {0,0,COLS,ROWS}) do return false, {}
+	return true, x_form_tile
 }
 
 InteractionMode :: enum {
@@ -151,11 +167,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 	m := &s.m
 	entities := &s.e
 	order_queue := &s.oq
-	flip :: proc(tile:[2]int) -> [2]int {
-		t := tile
-		t.y = common.ROWS - t.y
-		return t
-	}
 
 /*****************
  * SEC: MEM INIT *
@@ -165,7 +176,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		add_entity(entities, .Null, {0,0,0})
 		add_order(&s.oq, .Null, {})
 
-		s.cam.center = {0,0,1}
+		s.cam.focus = {COLS/2,ROWS/2,1}
+		s.cam.dims  = {COLS, ROWS, 1}
+
 		s.m = init_map({20, 20, 3})
 		INIT_DUMMY_MAP(&s.m)
 
@@ -215,7 +228,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
  *******************/
 
 	{
-		z_level := s.cam.center.z
+		z_level := s.cam.focus.z
 
 		for y in 0..<m.dim.y {
 			for x in 0..<m.dim.x {
@@ -236,8 +249,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					fg = green
 					glyph = .D_QUOTE
 				}
-				screen_tile := flip({x,y})
-				if screen_tile.y < common.ROWS {
+				visible, screen_tile := camera_xform(s.cam, {x,y,z_level})
+				if visible {
 					plot_tile(screen_tile, fg, bg, glyph)
 				}
 			}
@@ -473,17 +486,21 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		}
 
 		/* SEC: Entity Render */
-		if e.pos.z == s.cam.center.z {
+		if e.pos.z == s.cam.focus.z {
 			switch e.type {
 			case .Null: {}
 			case .Creature: {
-				plot_tile(flip(e.pos.xy), white, black, .AT)
-				has_creature[e.pos.x + (e.pos.y * COLS)] = true
+				visible, screen_tile := camera_xform(s.cam, e.pos)
+				if visible {
+					plot_tile(screen_tile, white, black, .AT)
+					has_creature[screen_tile.x + (screen_tile.y * COLS)] = true
+				}
 			}
 			case .Building: {
 				if e.building.type == .Tree {
-					if !has_creature[e.pos.x + (e.pos.y * COLS)] {
-						plot_tile(flip(e.pos.xy), tree_brown, black, .O)
+					visible, screen_tile := camera_xform(s.cam, e.pos)
+					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
+						plot_tile(screen_tile, white, black, .O)
 					}
 				} else if e.building.type in is_workshop {
 					background := black
@@ -496,25 +513,27 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						fg2 = change_lightness(fg2, alpha)
 					}
 
-					offset := [9]V2i{{0,2},{1,2},{2,2},
-									 {0,1},{1,1},{2,1},
-									 {0,0},{1,0},{2,0}}
+					offset := [9]V3i{{0,2,0},{1,2,0},{2,2,0},
+									 {0,1,0},{1,1,0},{2,1,0},
+									 {0,0,0},{1,0,0},{2,0,0}}
 					glyphs := B_PROTOS[e.building.type].glyphs
 					for o, i in offset {
-						tile := e.pos.xy + o
-						fg := fg2 if o == {2,2} else fg1
-						if !has_creature[tile.x + tile.y*COLS] {
-							plot_tile(flip(tile), fg, background, glyphs[i])
+						tile := e.pos + o
+						fg := fg2 if o.xy == {2,2} else fg1
+						visible, screen_tile := camera_xform(s.cam, tile)
+						if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
+							plot_tile(screen_tile, fg, background, glyphs[i])
 						}
 					}
 				}
 			}
 			case .Material: {
-				if has_creature[e.pos.x + (e.pos.y * COLS)] {
-					// do nothing
-				} else if e.in_inventory_of == 0 && e.in_building == 0 {
-					color := tree_brown if e.material.type in is_wood else stone_grey
-					plot_tile(flip(e.pos.xy), color, black, .M)
+				if e.in_inventory_of == 0 && e.in_building == 0 {
+					visible, screen_tile := camera_xform(s.cam, e.pos)
+					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
+						color := tree_brown if e.material.type in is_wood else stone_grey
+						plot_tile(screen_tile, color, black, .M)
+					}
 				}
 			}
 
@@ -630,7 +649,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			// Hovered Tile render and handling
 			s.hovered_tile.x = input.mouse.tile.x
 			s.hovered_tile.y = common.ROWS - input.mouse.tile.y
-			s.hovered_tile.z = s.cam.center.z
+			s.hovered_tile.z = s.cam.focus.z
 			lmb := pressed(input.mouse.lmb)
 
 			switch s.interaction_mode {
@@ -671,7 +690,10 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				}
 			}
 			case .CutTrees: {
-				plot_tile(flip(s.hovered_tile.xy), black, red, .BLANK)
+				visible, screen_tile := camera_xform(s.cam, s.hovered_tile)
+				if visible {
+					plot_tile(screen_tile, black, red, .BLANK)
+				}
 				if lmb {
 					es := get_entities_at_pos(entities, s.hovered_tile)
 					for e_i in es {
@@ -687,7 +709,10 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						s.im_toggle = true
 						s.im_ref_pos = s.hovered_tile
 					}
-					plot_tile(flip(s.hovered_tile.xy), black, red, .BLANK)
+					visible, screen_tile := camera_xform(s.cam, s.hovered_tile)
+					if visible {
+						plot_tile(screen_tile, black, red, .BLANK)
+					}
 				} else {
 					v_min := vec_min(s.im_ref_pos, s.hovered_tile)
 					v_max := vec_max(s.im_ref_pos, s.hovered_tile)
@@ -697,7 +722,10 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							tile := get_map_tile(m, {x,y,v_min.z})
 							if tile.content.shape == .Wall {
 								if lmb do tile.order_idx = add_order(order_queue, .Mine, {x,y,v_min.z})
-								plot_tile(flip({x,y}), black, blue, .BLANK)
+								visible, screen_tile := camera_xform(s.cam, {x,y,v_min.z})
+								if visible {
+									plot_tile(screen_tile, black, red, .BLANK)
+								}
 							}
 						}
 					}
@@ -709,9 +737,11 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					e_def := B_PROTOS[s.im_building_selection]
 					for x in 0..<e_def.dims.x {
 						for y in 0..<e_def.dims.y {
-							tile := s.hovered_tile.xy + {x,y}
-							if !in_rect(tile, {0,0,COLS,ROWS}) do continue
-							plot_tile(flip(tile), white, black, .X)
+							tile := s.hovered_tile + {x,y,0}
+							visible, screen_tile := camera_xform(s.cam, tile)
+							if visible {
+								plot_tile(screen_tile, white, black, .X)
+							}
 						}
 					}
 				}

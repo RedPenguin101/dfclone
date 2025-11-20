@@ -21,6 +21,17 @@ tile_cube_from_min_and_dim :: proc(pos,dim:V3i) -> TileCube {
     return {pos, pos+dim-{1,1,1}}
 }
 
+tile_rect_from_center_and_dim :: proc(center,dim:V2i) -> TileRect {
+	min_v := center - (dim/2)
+	max_v := min_v + dim
+	return {
+		min_v.x,
+		min_v.y,
+		max_v.x,
+		max_v.y,
+	}
+}
+
 in_cube :: proc(v:V3i, cube:TileCube) -> bool {
     return v.x >= cube.min.x && v.x <= cube.max.x &&
         v.y >= cube.min.y && v.y <= cube.max.y &&
