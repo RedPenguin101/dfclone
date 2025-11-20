@@ -76,6 +76,7 @@ KeyboardInput :: [KeyboardKey]ButtonState
 
 MouseInput :: struct {
 	position, previous_position:[2]f32,
+	// denoted in screen space
 	tile, previous_tile:[2]int,
 	moved : bool,
 	lmb : ButtonState,

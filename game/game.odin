@@ -72,15 +72,6 @@ basis_xform_point :: proc(b:Basis, v:V2i) -> V2i {
     return v_b
 }
 
-invert_basis :: proc(b:Basis) -> Basis {
-    scale := 1/b.x.x
-    return Basis{
-        b.origin * -scale,
-        {scale, 0},
-        {0, scale}
-    }
-}
-
 camera_xform :: proc(cam:Camera, tile:V3i) -> (on_screen:bool, screen_tile:V2i) {
 	// takes a map tile location and transforms it the screen tile location
 	if tile.z != cam.focus.z do return false, {}
@@ -90,27 +81,22 @@ camera_xform :: proc(cam:Camera, tile:V3i) -> (on_screen:bool, screen_tile:V2i) 
 	if !in_rect(tile.xy, rect) do return false, {}
 
 	camera_basis := Basis{
-		origin = -rect.xw,
+		origin = {rect.x, -rect.w},
 		x = {1, 0},
 		y = {0, -1}
 	}
 
 	xformed_tile := basis_xform_point(camera_basis, tile.xy)
 
-	back_xform := screen_xform(cam, xformed_tile)
-	if back_xform != tile {
-		DBG("incorrect calc back: started", tile, back_xform)
-	}
-
 	if !in_rect(xformed_tile, {0,0,COLS,ROWS}) do return false, {}
 	return true, xformed_tile
 }
 
-screen_xform :: proc(cam:Camera, tile:V2i) -> V3i {
+map_xform :: proc(cam:Camera, tile:V2i) -> V3i {
 	rect := tile_rect_from_center_and_dim(cam.focus.xy, cam.dims.xy)
 
 	map_basis := Basis{
-		origin = {rect.x, -rect.w},
+		origin = -rect.xw,
 		x = {1, 0},
 		y = {0, -1}
 	}
@@ -224,7 +210,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		add_entity(entities, .Null, {0,0,0})
 		add_order(&s.oq, .Null, {})
 
-		s.cam.focus = {COLS/2,ROWS/2,1}
+		s.cam.focus = {5,10,1}
 		s.cam.dims  = {COLS, ROWS, 1}
 
 		s.m = init_map({20, 20, 3})
@@ -275,9 +261,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
  * SEC: INPUT HANDLING *
  ***********************/
 
-	s.hovered_tile.x = input.mouse.tile.x
-	s.hovered_tile.y = common.ROWS - input.mouse.tile.y
-	s.hovered_tile.z = s.cam.focus.z
+	s.hovered_tile = map_xform(s.cam, input.mouse.tile)
 	lmb := pressed(input.mouse.lmb)
 	rmb := pressed(input.mouse.rmb)
 
