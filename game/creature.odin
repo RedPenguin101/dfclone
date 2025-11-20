@@ -9,6 +9,8 @@ Creature :: struct {
 	name: string,
 	task: Task,
 	path: [dynamic]V3i,
+	current_order_idx: int,
+	action_ticker : f32,
 }
 
 TaskType :: enum {

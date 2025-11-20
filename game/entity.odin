@@ -5,6 +5,7 @@ EntityType :: enum {
 	Creature,
 	Building,
 	Material,
+	Production,
 }
 
 Entity :: struct {
@@ -13,13 +14,10 @@ Entity :: struct {
 	in_building:int,
 	pos : V3i, // NOTE: south west lower corner for multi-tile entities
 	dim : V3i,
-	// TODO: These should be in creature
-	current_order_idx: int,
-	action_ticker : f32,
-	//
 	building:Building,
 	material:Material,
 	creature:Creature,
+	production:Production,
 	inventory:[dynamic]int,
 }
 
@@ -40,8 +38,6 @@ add_entity :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
 		type              = type,
 		pos               = pos,
 		dim               = {1,1,1},
-		current_order_idx = 0,
-		action_ticker     = 0.2
 	}
 	free_size := len(E_FREE_STACK)
 	idx : int
@@ -62,6 +58,7 @@ add_creature :: proc(es:^[dynamic]Entity, type:CreatureType, pos:V3i, name:strin
 		type = type,
 		name = name,
 		task = {},
+		action_ticker = 0.2
 	}
 	i := add_entity(es, .Creature, pos)
 	es[i].creature = c

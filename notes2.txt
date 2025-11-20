@@ -1,0 +1,29 @@
+Notes2
+------
+
+Types of Entity:
+
+Creatures: actors. Make decisions about what to do.
+
+Material: objects that are not made of anything else. Rock, Wood,
+Glass. They can have different _forms_: natural, block, bar etc. They
+do not have 'quality' in and of themselves. They can be _transformed_
+into other materials (sand to glass). Or they can be used in
+constructions.
+
+Buildings: objects that are made of materials (or produced goods), and
+are defined by those materials, as well as their location (buildings
+must be placed). Workshops are an example - these are buildings that
+can _produce_ (turn maturials into goods). But anything that is placed
+is a building: trees are buildigs made of several wood materials. A
+special type of building is a "Single Good" Building. This is, in
+effect, a Produced Good that has been placed. For example a chair or
+table or bed. Any Produced Good can be placed to create a Single Good
+Building. Some goods have special properties when placed - for example
+a chair confers the 'sittable' attribute. Chests confer the "storage"
+attributes.
+
+Produced goods: objects that are made of materials (or other produced
+goods) at a Building. They are defined by those materials, but also
+have their own qualities, such as illustrations, elaborations etc, as
+well has having a general quality (bad, good, excellent).
