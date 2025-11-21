@@ -359,7 +359,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						}
 					}
 					case .CutTree, .Deconstruct: {
-						reachable := find_path(&s.m, e.pos, order.pos, &e.creature.path)
+						building := entities[order.target_entity_idx]
+						reachable := find_path(&s.m, e.pos, building.pos, &e.creature.path)
 						if reachable
 						{
 							e.creature.task.type = .DeconstructBuilding
