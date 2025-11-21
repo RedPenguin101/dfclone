@@ -15,6 +15,12 @@ Stockpiles
 Rooms
 When picking up a new work order, the dwarf should have a preference to continue the type of work it's doing, or picking something close. Possibly they should have a boredom threshold and need for variety
 
+Refactor
+--------
+Make Menus a loop local so don't have to & ref all the time
+Give map / entity a better name in game struct
+Give map local a better name
+
 UI/Platform
 -----------
 Clearer distinction for buttons in menus
@@ -27,6 +33,7 @@ Pause
 Keyboard for mining, building.
 Bug: Still getting sleep fails in some places - mostly when the window is defocused
 Check for sdl dlls
+centralize tear down / rebuild of menus
 
 Map Gen
 -------

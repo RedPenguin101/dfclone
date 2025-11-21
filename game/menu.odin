@@ -286,7 +286,6 @@ populate_material_selector :: proc(m:^MenuState, entities:[]Entity, indices:[]in
 
 populate_order_menu :: proc(m:^MenuState, oq:^OrderQueue) -> []int {
 	wom := MenuName.WorkOrderMenu
-	m.menus[wom].visible = false
 	clear_menu(m, wom)
 	m.menus[wom].rect = {30, 5, 60, 20}
 
@@ -337,4 +336,34 @@ populate_order_menu :: proc(m:^MenuState, oq:^OrderQueue) -> []int {
 	add_element(m, wom, btn)
 	m.menus[wom].visible = true
 	return ret[:]
+}
+
+populate_place_order_menu :: proc(m:^MenuState) {
+	pom := MenuName.AddWorkOrderMenu
+	clear_menu(m, pom)
+	m.menus[pom].rect = {30, 5, 60, 20}
+
+	add_element(m, pom, {type=.Button, rect={29,0,30,1}, text=text("X")})
+
+	btn_start := TileRect{0, 0, 29, 1}
+	next_row := TileRect{0,1,0,1}
+
+	btn := MenuElement{
+		type = .Text,
+		rect = btn_start,
+		text = text("Add Work Order")
+	}
+	add_element(m, pom, btn)
+
+	btn.type = .Button
+	btn.rect.z += 1
+
+	for pt in ProductionType
+	{
+		btn.rect += next_row
+		btn.text = text(pt)
+		add_element(m, pom, btn)
+	}
+
+	m.menus[pom].visible = true
 }

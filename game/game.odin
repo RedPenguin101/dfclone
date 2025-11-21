@@ -718,7 +718,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							null_menu_state(&s.menus)
 						} else if el_idx == len((menu.element_idx))-1 // last button is new
 						{
-							// TODO: Implement new work order
+							clear_menu(&s.menus, .WorkOrderMenu)
+							s.menus.menus[.WorkOrderMenu].visible = false
+							populate_place_order_menu(&s.menus)
 						} else if el_idx > 1 // 2nd element is a header label
 						{
 							// each 'row' has 5 elements: Type, Qty, Plus, Minus, Cancel
@@ -740,7 +742,19 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							rebuild_work_order_menu = true
 						}
 					}
-					case .AddWorkOrderMenu: {}
+					case .AddWorkOrderMenu: {
+						if el_idx == 0 // cancel
+						{
+							s.interaction_mode = .Map
+							null_menu_state(&s.menus)
+						}  else if el_idx > 1 // 2nd element is a header label
+						{
+							DBG(ProductionType(el_idx-2))
+							add_order(order_queue, .Produce, idx = el_idx-2, count = 10)
+							s.menus.menus[.AddWorkOrderMenu].visible = false // NOTE: memory will be cleared up on next call to populate
+							rebuild_work_order_menu = true
+						}
+					}
 					}
 				}
 			}
