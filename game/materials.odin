@@ -10,8 +10,13 @@ Material :: struct {
     earmarked_for_use: bool,
 }
 
+// TODO: maybe better to do this with an attribute system
 is_wood := bit_set[MaterialType] {
     .Wood_Oak,
+}
+
+is_stone := bit_set[MaterialType] {
+    .Stone_Limestone, .Stone_Magnetite
 }
 
 get_material_in_inventory :: proc(inv:[]Material, type:MaterialType) -> int {

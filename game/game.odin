@@ -207,6 +207,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
  *****************/
 
 	if !memory.initialized {
+		// NULL entries
 		add_entity(entities, .Null, {0,0,0})
 		add_order(&s.oq, .Null, {})
 
@@ -243,6 +244,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			quantity = 1,
 			earmarked_for_use = false
 		}
+
+		add_order(order_queue, .Produce, idx = int(ProductionType.Bed), count=25)
+		add_order(order_queue, .Produce, idx = int(ProductionType.Door), count=10)
 
 		setup_menus(&s.menus)
 		memory.initialized = true
@@ -330,6 +334,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						e.creature.current_order_idx = i
 						INFO("Picked up order", o.type, o.pos)
 						o.status = .Assigned
+						o.assigned_creature_idx = my_idx
 					}
 				}
 
@@ -359,12 +364,12 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						}
 					}
 					case .CutTree, .Deconstruct: {
-						building := entities[order.target_entity_idx]
+						building := entities[order.target_idx]
 						reachable := find_path(&s.m, e.pos, building.pos, &e.creature.path)
 						if reachable
 						{
 							e.creature.task.type = .DeconstructBuilding
-							e.creature.task.entity_idx_1 = order.target_entity_idx
+							e.creature.task.entity_idx_1 = order.target_idx
 							DBG("task assign", e.creature.task.type, e.creature.task.loc_1)
 						}
 						else
@@ -374,8 +379,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							INFO("Can't reach deconstruction location, looking for another job")
 						}
 					}
+					case .Produce: {}
 					case .Construct: {
-						b_idx := order.target_entity_idx
+						b_idx := order.target_idx
 						b := &entities[b_idx]
 						switch b.building.status {
 						case .Null, .PendingMaterialAssignment: panic("unreachable")
@@ -599,6 +605,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
  **************/
 
 	{
+		// NOTE: Maybe make this into a bitset
+		rebuild_work_order_menu := false
+
 		hot = NULL_UIID
 		for &element in s.menus.elements {
 			id := element.id
@@ -612,12 +621,20 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			case .Null: {}
 			case .Button: {
 				if do_button(id, input.mouse, rect, element.text, element.state == .Depressed) {
-					if menu_name == .MainBar {
+					switch menu_name {
+					case .Null: {}
+					case .MainBar: {
 						if element.state == .None {
 							null_menu_state(&s.menus)
 							element.state = .Depressed
 							s.interaction_mode = InteractionMode(id.element_idx+1)
 							if element.submenu != .Null {
+								switch element.submenu {
+								case .Null, .MainBar, .BuildingSelector, .MaterialSelection, .EntityMenu, .AddWorkOrderMenu: {}
+								case .WorkOrderMenu: {
+									s.im_temp_entity_buffer = populate_order_menu(&s.menus, order_queue)
+								}
+								}
 								s.menus.menus[element.submenu].visible = true
 							}
 						} else if element.state == .Depressed {
@@ -625,7 +642,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							null_menu_state(&s.menus)
 							s.interaction_mode = .Map
 						}
-					} else if menu_name == .BuildingSelector {
+					}
+					case .BuildingSelector: {
 						if el_idx == len(menu.element_idx)-1 {
 							// CLOSE
 							s.interaction_mode = .Map
@@ -651,7 +669,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 								s.interaction_mode = .Build
 							}
 						}
-					} else if menu_name == .MaterialSelection {
+					}
+					case .MaterialSelection: {
 						if el_idx == len(s.im_temp_entity_buffer) {
 							// cancel
 							delete(s.im_temp_entity_buffer)
@@ -675,7 +694,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							s.interaction_mode = .Map
 							null_menu_state(&s.menus)
 						}
-					} else if menu_name == .EntityMenu {
+					}
+					case .EntityMenu: {
 						if el_idx == len(menu.element_idx)-1 // Close is last element
 						{
 							s.interaction_mode = .Map
@@ -690,12 +710,49 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							menu.visible = false
 						}
 					}
+					case .WorkOrderMenu: {
+						if el_idx == 0 // cancel
+						{
+							s.interaction_mode = .Map
+							delete(s.im_temp_entity_buffer)
+							null_menu_state(&s.menus)
+						} else if el_idx == len((menu.element_idx))-1 // last button is new
+						{
+							// TODO: Implement new work order
+						} else if el_idx > 1 // 2nd element is a header label
+						{
+							// each 'row' has 5 elements: Type, Qty, Plus, Minus, Cancel
+							tmp_idx := (el_idx-2)/5
+							action := (el_idx-2)%5 - 2 // 0: add, 1: decrease, 2: cancel
+							order_idx := s.im_temp_entity_buffer[tmp_idx]
+							order := &order_queue.orders[order_idx]
+							if action == 0 {
+								order.target_count += 1
+							} else if action == 1 && order.target_count > 0 {
+								order.target_count -= 1
+							} else if action == 2 {
+								assigned_to := order.assigned_creature_idx
+								if assigned_to > 0 {
+									entities[assigned_to].creature.current_order_idx = 0
+								}
+								complete_order(order_queue, order_idx)
+							}
+							rebuild_work_order_menu = true
+						}
+					}
+					case .AddWorkOrderMenu: {}
+					}
 				}
 			}
 			case .Text: {
 				do_text(id, rect, element.text)
 			}
 			}
+		}
+
+		if rebuild_work_order_menu {
+			delete(s.im_temp_entity_buffer)
+			s.im_temp_entity_buffer = populate_order_menu(&s.menus, order_queue)
 		}
 
 		if hot == NULL_UIID {

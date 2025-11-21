@@ -4,6 +4,7 @@ Build a bed from wood in workshop ('automanager' centralized style?).
 Building a bed creates an order to haul the bed to a stockpile.
 Place the Bed.
 
+Orders: periodically reassess order viability. e.g. produce order is not viable when no workshop is available. In order loop, should occassionaly check if something has opened up. Also, create order loop
 Action ticker handling is still not great: Shouldn't pause _after_ finishing mining
 BUG: pathing can take you OOB of map
 proper time costs for building, mining, moving
@@ -12,10 +13,12 @@ Charcoal, Smelting
 Beds, sleeping
 Stockpiles
 Rooms
+When picking up a new work order, the dwarf should have a preference to continue the type of work it's doing, or picking something close. Possibly they should have a boredom threshold and need for variety
 
 UI/Platform
 -----------
-Proper camera and panning (Bring back basis xforms? Maybe overkill in this context)
+Clearer distinction for buttons in menus
+Maybe change convention for menus that cancel is always first element
 Right click menus on entity - build item in workshop
 Better glyph choice for materials
 workshop colors should be based on the material they are made of
@@ -23,6 +26,7 @@ escape exits back to map mode, always
 Pause
 Keyboard for mining, building.
 Bug: Still getting sleep fails in some places - mostly when the window is defocused
+Check for sdl dlls
 
 Map Gen
 -------
