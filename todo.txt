@@ -1,8 +1,8 @@
 Gameplay
 --------
-Build a bed from wood in workshop ('automanager' centralized style?).
 Building a bed creates an order to haul the bed to a stockpile.
 Place the Bed.
+Able to see what's in inventory from building menu
 
 Orders: periodically reassess order viability. e.g. produce order is not viable when no workshop is available. In order loop, should occassionaly check if something has opened up. Also, create order loop
 Action ticker handling is still not great: Shouldn't pause _after_ finishing mining
@@ -14,6 +14,7 @@ Beds, sleeping
 Stockpiles
 Rooms
 When picking up a new work order, the dwarf should have a preference to continue the type of work it's doing, or picking something close. Possibly they should have a boredom threshold and need for variety
+Change reference point of workshops to center
 
 Refactor
 --------

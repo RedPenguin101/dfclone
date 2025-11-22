@@ -83,6 +83,15 @@ add_tree :: proc(es:^[dynamic]Entity, mat:MaterialType, pos:V3i, height:int) -> 
 E_FREE_STACK : [dynamic]int
 
 remove_entity :: proc(es:^[dynamic]Entity, idx:int) {
+	assert(es[idx].in_building == 0)
+
+	in_inv_of := es[idx].in_inventory_of
+	if in_inv_of != 0 {
+		// remove from inventory of other entity
+		inventory := es[in_inv_of].inventory
+		remove_from_inventory(&inventory, idx)
+	}
+
 	clear(&es[idx].inventory)
 	if es[idx].type == .Creature {
 		delete(es[idx].creature.path)
@@ -92,10 +101,10 @@ remove_entity :: proc(es:^[dynamic]Entity, idx:int) {
 	append(&E_FREE_STACK, idx)
 }
 
-remove_from_inventory :: proc(es:^[dynamic]int, ety_idx:int) {
-	for e, i in es {
+remove_from_inventory :: proc(inventory:^[dynamic]int, ety_idx:int) {
+	for e, i in inventory {
 		if e == ety_idx {
-			unordered_remove(es, i)
+			unordered_remove(inventory, i)
 		}
 	}
 }

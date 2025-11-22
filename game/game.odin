@@ -17,6 +17,7 @@ Glyph :: common.DisplayGlyph
 TEMP_MOVE_COST :: 0.1
 TEMP_BUILD_COST :: 0.1
 TEMP_MINE_COST :: 0.1
+TEMP_PRODUCE_COST :: 0.1
 
 /******************
  * SEC: Constants *
@@ -245,8 +246,20 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			earmarked_for_use = false
 		}
 
-		add_order(order_queue, .Produce, idx = int(ProductionType.Bed), count=25)
-		add_order(order_queue, .Produce, idx = int(ProductionType.Door), count=10)
+		t = add_entity(entities, .Material, {9, 7, 1})
+		entities[t].material = Material{
+			type = .Wood_Oak,
+			form = .Natural,
+			quantity = 1,
+			earmarked_for_use = false
+		}
+
+		t = add_entity(entities, .Building, {4,5,1})
+		entities[t].dim = {3,3,1}
+		entities[t].building = {
+			type = .Carpenter,
+			status = .Normal,
+		}
 
 		setup_menus(&s.menus)
 		memory.initialized = true
@@ -332,7 +345,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					i, o := get_unassigned_order(order_queue)
 					if i > 0 {
 						e.creature.current_order_idx = i
-						INFO("Picked up order", o.type, o.pos)
+						INFO("Picked up order", o.type, o.pos, o.target_idx, o.target_count)
 						o.status = .Assigned
 						o.assigned_creature_idx = my_idx
 					}
@@ -340,7 +353,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 
 				/* SEC: Creature Decide new task */
 				switch e.creature.task.type {
-				case .None:  {
+				case .None: {
 					order := &order_queue.orders[e.creature.current_order_idx]
 					switch order.type {
 					case .Null: {
@@ -354,7 +367,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						{
 							e.creature.task.type = .MineTile
 							e.creature.task.loc_1 = order.pos
-							DBG("task assign", e.creature.task.type, e.creature.task.loc_1)
 						}
 						else
 						{
@@ -370,7 +382,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						{
 							e.creature.task.type = .DeconstructBuilding
 							e.creature.task.entity_idx_1 = order.target_idx
-							DBG("task assign", e.creature.task.type, e.creature.task.loc_1)
 						}
 						else
 						{
@@ -379,7 +390,44 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							INFO("Can't reach deconstruction location, looking for another job")
 						}
 					}
-					case .Produce: {}
+					case .Produce: {
+						produce := ProductionType(order.target_idx)
+						workshops := production_template[produce].made_at
+						materials := production_template[produce].made_from
+
+						found_workshop := false
+						found_material := false
+						target_workshop : int
+						target_material : int
+						for e, i in entities {
+							if !found_workshop && e.type == .Building && e.building.type in workshops {
+								found_workshop = true
+								target_workshop = i
+								// TODO: If the workshop already has a suitable material in inventory, immediately set task to ProduceAtWorkshop
+							} else if !found_material && e.type == .Material &&
+								e.material.type in materials &&
+								e.in_inventory_of == 0 && e.in_building == 0 {
+									found_material = true
+									target_material = i
+								}
+							if found_material && found_workshop do break
+						}
+						if found_workshop && found_material {
+							get_from := entities[target_material].pos
+							reachable := find_path(&s.m, e.pos, get_from, &e.creature.path)
+							e.creature.task = {
+								type = .MoveMaterialFromLocationToEntity,
+								entity_idx_1 = target_material,
+								entity_idx_2 = target_workshop,
+								production_type = produce,
+							}
+						} else {
+							e.creature.current_order_idx = 0
+							order.status = .Suspended
+							order.assigned_creature_idx = 0
+							INFO("Can't find workshop/material needed to produce object, looking for another job")
+						}
+					}
 					case .Construct: {
 						b_idx := order.target_idx
 						b := &entities[b_idx]
@@ -399,7 +447,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 									e.creature.task.type = .MoveMaterialFromLocationToEntity
 									e.creature.task.entity_idx_1 = mat_idx
 									e.creature.task.entity_idx_2 = b_idx
-									DBG("task assign", e.creature.task.type)
 								}
 								else
 								{
@@ -428,7 +475,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					} else {
 						mat := mine_tile(m, target_pos)
 						e.creature.action_ticker -= TEMP_MINE_COST
-						DBG("Finished mining", target_pos)
 						complete_order(order_queue, e.creature.current_order_idx)
 						e.creature.current_order_idx = 0
 						tile := get_map_tile(m, target_pos)
@@ -442,6 +488,29 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						make_suspended_mine_orders_available(order_queue)
 					}
 				}
+				case .ProduceAtWorkshop: {
+					m_idx := e.creature.task.entity_idx_1
+					b_idx := e.creature.task.entity_idx_2
+					produce := e.creature.task.production_type
+					building := entities[b_idx]
+					if !are_adjacent(e.pos, building.pos) {
+						if len(e.creature.path) == 0 do find_path(&s.m, e.pos, building.pos, &e.creature.path)
+						e.pos = pop(&e.creature.path)
+						e.creature.action_ticker -= TEMP_MOVE_COST
+					} else {
+						material := entities[m_idx]
+						assert(material.in_inventory_of == b_idx)
+						e.creature.action_ticker -= TEMP_PRODUCE_COST
+						remove_entity(entities, m_idx)
+						new_i := add_entity(entities, .Production, building.pos)
+						entities[new_i].in_inventory_of = b_idx
+						entities[new_i].production = {
+							produce,
+						}
+						append(&building.inventory, new_i)
+						e.creature.task.type = .None
+					}
+				}
 				case .DeconstructBuilding:{
 					b_idx := e.creature.task.entity_idx_1
 					building := &entities[b_idx]
@@ -453,7 +522,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						building.building.deconstruction_percentage += 0.2
 						e.creature.action_ticker -= TEMP_BUILD_COST
 						if building.building.deconstruction_percentage > 1 {
-							DBG("Finished deconstructing", target_pos)
 							for material_index in building.inventory {
 								entities[material_index].in_inventory_of = 0
 								entities[material_index].in_building = 0
@@ -469,6 +537,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					}
 				}
 				case .MoveMaterialFromEntityToLocation: panic("unimplemented")
+
 				case .ConstructBuilding: {
 					b_idx := e.creature.task.entity_idx_1
 					building := &entities[b_idx]
@@ -480,7 +549,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						building.building.deconstruction_percentage -= 0.2
 						e.creature.action_ticker -= TEMP_BUILD_COST
 						if building.building.deconstruction_percentage < 0 {
-							DBG("Finished constructing", target_pos)
 							building.building.deconstruction_percentage = 0
 							building.building.status = .Normal
 							for m_idx in building.inventory {
@@ -520,7 +588,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 								e.creature.action_ticker -= TEMP_MOVE_COST
 								append(&e.inventory, mat_idx)
 								mat.in_inventory_of = my_idx
-								DBG("Task step completed", e.creature.task.type)
 							}
 							else
 							{
@@ -530,12 +597,21 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 								e.creature.task.type = .None
 							}
 						} else {
-							DBG("Task completed", e.creature.task.type)
 							e.creature.action_ticker -= TEMP_MOVE_COST
 							remove_from_inventory(&e.inventory, mat_idx)
 							mat.in_inventory_of = ety_idx
 							append(&ety.inventory, mat_idx)
-							e.creature.task.type = .None
+
+							order := order_queue.orders[e.creature.current_order_idx]
+							if order.type == .Produce
+							{  // Finished hauling preparatory to production, start production
+								e.creature.task.type = .ProduceAtWorkshop
+							} else
+							{
+								// TODO: If the order type is construct, check if the building has
+								// the required materials and move to construction
+								e.creature.task.type = .None
+							}
 						}
 					}
 				}
@@ -749,7 +825,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							null_menu_state(&s.menus)
 						}  else if el_idx > 1 // 2nd element is a header label
 						{
-							DBG(ProductionType(el_idx-2))
 							add_order(order_queue, .Produce, idx = el_idx-2, count = 10)
 							s.menus.menus[.AddWorkOrderMenu].visible = false // NOTE: memory will be cleared up on next call to populate
 							rebuild_work_order_menu = true

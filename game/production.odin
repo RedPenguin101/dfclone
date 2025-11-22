@@ -15,7 +15,7 @@ ProductionTemplate :: struct {
 	attributes:bit_set[AttributeName]
 }
 
-prouction_template := [ProductionType]ProductionTemplate {
+production_template := [ProductionType]ProductionTemplate {
 		.Bed = {
 				.B, is_wood, {.Carpenter}, {.SleepIn},
 		},
