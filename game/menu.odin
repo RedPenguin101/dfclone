@@ -149,11 +149,11 @@ setup_menus :: proc(m:^MenuState) {
 	}
 }
 
-populate_building_menu :: proc(m:^MenuState, e:Entity) {
+populate_building_menu :: proc(m:^MenuState, e:Entity, es:[]Entity) {
 	clear_menu(m, .EntityMenu)
 	m.menus[.EntityMenu].rect = {30, 5, 60, 20}
 	btn_start := TileRect{0,0,30,1}
-	btn_delta := TileRect{0,1, 0,1}
+	next_row := TileRect{0,1, 0,1}
 
 	first  := text(e.building.type)
 	second := text(e.building.status)
@@ -167,27 +167,38 @@ populate_building_menu :: proc(m:^MenuState, e:Entity) {
 	btn.rect.z -= 1
 	add_element(m, .EntityMenu, btn)
 	btn.rect.z += 1
-	btn_start += btn_delta
+	btn_start += next_row
 
+	// type
 	btn.rect = btn_start
 	btn.text = second
 	add_element(m, .EntityMenu, btn)
 
+	for inv_idx in e.inventory {
+		inv_item := es[inv_idx]
+		btn.rect += next_row
+		if inv_item.type == .Material {
+			btn.text = text(inv_idx, inv_item.material.type)
+		} else if inv_item.type == .Production {
+			btn.text = text(inv_idx, inv_item.production.type)
+		}
+		add_element(m, .EntityMenu, btn)
+	}
+
+	// Last two elements are buttons
+	btn.rect += next_row
 	btn.type = .Button
-	btn.rect = btn_start
 	btn.text = text("Deconstruct")
 	add_element(m, .EntityMenu, btn)
-	btn_start += btn_delta
 
 	btn.rect = {29,0,30,1}
 	btn.text = text("X")
 	add_element(m, .EntityMenu, btn)
-	btn_start += btn_delta
 }
 
-populate_entity_menu :: proc(m:^MenuState, e:Entity) {
+populate_entity_menu :: proc(m:^MenuState, e:Entity, entities:[]Entity) {
 	if e.type == .Building {
-		populate_building_menu(m, e)
+		populate_building_menu(m, e, entities)
 		return
 	}
 	clear_menu(m, .EntityMenu)

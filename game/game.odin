@@ -878,7 +878,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						eidx := entities_at_cursor[0]
 						s.im_selected_entity_idx = eidx
 						s.interaction_mode = .EntityInteract
-						populate_entity_menu(&s.menus, entities[s.im_selected_entity_idx])
+						populate_entity_menu(&s.menus, entities[s.im_selected_entity_idx], entities[:])
 						s.menus.menus[.EntityMenu].visible = true
 					}
 				}

@@ -131,6 +131,7 @@ get_entities_at_pos :: proc(es:^[dynamic]Entity, pos:V3i) -> []int {
 	idx := 0
 	for e, i in es {
 		if idx >= E_BUFF_SIZE do break
+		if e.in_inventory_of != 0 || e.in_building != 0 do continue
 		cube := tile_cube_from_min_and_dim(e.pos, e.dim)
 		if in_cube(pos, cube) {
 			E_BUFF[idx] = i

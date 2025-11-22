@@ -2,7 +2,8 @@ Gameplay
 --------
 Building a bed creates an order to haul the bed to a stockpile.
 Place the Bed.
-Able to see what's in inventory from building menu
+When a building is desconstructed it should put its inventory around the area (Should already do that? Bug?)
+Producing an item should make it's count in the order go down
 
 Orders: periodically reassess order viability. e.g. produce order is not viable when no workshop is available. In order loop, should occassionaly check if something has opened up. Also, create order loop
 Action ticker handling is still not great: Shouldn't pause _after_ finishing mining
