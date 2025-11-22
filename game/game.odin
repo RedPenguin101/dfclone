@@ -509,6 +509,14 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						}
 						append(&building.inventory, new_i)
 						e.creature.task.type = .None
+						order := &order_queue.orders[e.creature.current_order_idx]
+						order.target_count -= 1
+						if order.target_count == 0 {
+							complete_order(order_queue, e.creature.current_order_idx)
+						}
+						if s.menus.menus[.WorkOrderMenu].visible {
+							populate_order_menu(&s.menus, order_queue)
+						}
 					}
 				}
 				case .DeconstructBuilding:{
