@@ -198,10 +198,12 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
  * LOOP LOCAL *
  **************/
 
-	s := &memory.game_state
-	m := &s.m
-	entities := &s.e
-	order_queue := &s.oq
+	state := &memory.game_state
+	entities := &state.e
+	order_queue := &state.oq
+	menus := &state.menus
+	mmap := &state.m
+	cam := &state.cam
 
 /*****************
  * SEC: MEM INIT *
@@ -210,13 +212,13 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 	if !memory.initialized {
 		// NULL entries
 		add_entity(entities, .Null, {0,0,0})
-		add_order(&s.oq, .Null, {})
+		add_order(order_queue, .Null, {})
 
-		s.cam.focus = {5,10,1}
-		s.cam.dims  = {COLS, ROWS, 1}
+		cam.focus = {5,10,1}
+		cam.dims  = {COLS, ROWS, 1}
 
-		s.m = init_map({20, 20, 3})
-		INIT_DUMMY_MAP(&s.m)
+		mmap^ = init_map({20, 20, 3})
+		INIT_DUMMY_MAP(mmap)
 
 		add_creature(entities, .Dwarf, {5, 10, 1}, fmt.aprint("Iton"))
 
@@ -261,7 +263,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			status = .Normal,
 		}
 
-		setup_menus(&s.menus)
+		setup_menus(menus)
 		memory.initialized = true
 	}
 
@@ -278,17 +280,17 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
  * SEC: INPUT HANDLING *
  ***********************/
 
-	s.hovered_tile = map_xform(s.cam, input.mouse.tile)
+	state.hovered_tile = map_xform(cam^, input.mouse.tile)
 	lmb := pressed(input.mouse.lmb)
 	rmb := pressed(input.mouse.rmb)
 
 	// SEC: Keyboard
 
 	{
-		if pressed(input.keyboard[.UP])    do s.cam.focus.y += 1
-		if pressed(input.keyboard[.DOWN])  do s.cam.focus.y -= 1
-		if pressed(input.keyboard[.LEFT])  do s.cam.focus.x -= 1
-		if pressed(input.keyboard[.RIGHT]) do s.cam.focus.x += 1
+		if pressed(input.keyboard[.UP])    do cam.focus.y += 1
+		if pressed(input.keyboard[.DOWN])  do cam.focus.y -= 1
+		if pressed(input.keyboard[.LEFT])  do cam.focus.x -= 1
+		if pressed(input.keyboard[.RIGHT]) do cam.focus.x += 1
 	}
 
 /*******************
@@ -296,11 +298,11 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
  *******************/
 
 	{
-		z_level := s.cam.focus.z
+		z_level := cam.focus.z
 
-		for y in 0..<m.dim.y {
-			for x in 0..<m.dim.x {
-				tile := get_map_tile(m, {x,y,z_level})
+		for y in 0..<mmap.dim.y {
+			for x in 0..<mmap.dim.x {
+				tile := get_map_tile(mmap, {x,y,z_level})
 				fg,bg:Color
 				glyph:Glyph
 				if tile.order_idx > 0 {
@@ -317,7 +319,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					fg = green
 					glyph = .D_QUOTE
 				}
-				visible, screen_tile := camera_xform(s.cam, {x,y,z_level})
+				visible, screen_tile := camera_xform(cam^, {x,y,z_level})
 				if visible {
 					plot_tile(screen_tile, fg, bg, glyph)
 				}
@@ -362,7 +364,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						continue
 					}
 					case .Mine: {
-						reachable := find_path(&s.m, e.pos, order.pos, &e.creature.path)
+						reachable := find_path(mmap, e.pos, order.pos, &e.creature.path)
 						if reachable
 						{
 							e.creature.task.type = .MineTile
@@ -377,7 +379,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					}
 					case .CutTree, .Deconstruct: {
 						building := entities[order.target_idx]
-						reachable := find_path(&s.m, e.pos, building.pos, &e.creature.path)
+						reachable := find_path(mmap, e.pos, building.pos, &e.creature.path)
 						if reachable
 						{
 							e.creature.task.type = .DeconstructBuilding
@@ -414,7 +416,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						}
 						if found_workshop && found_material {
 							get_from := entities[target_material].pos
-							reachable := find_path(&s.m, e.pos, get_from, &e.creature.path)
+							reachable := find_path(mmap, e.pos, get_from, &e.creature.path)
 							e.creature.task = {
 								type = .MoveMaterialFromLocationToEntity,
 								entity_idx_1 = target_material,
@@ -441,7 +443,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 								e.creature.task.type = .ConstructBuilding
 								e.creature.task.entity_idx_1 = b_idx
 							} else {
-								reachable := find_path(&s.m, e.pos, mat.pos, &e.creature.path)
+								reachable := find_path(mmap, e.pos, mat.pos, &e.creature.path)
 								if reachable
 								{
 									e.creature.task.type = .MoveMaterialFromLocationToEntity
@@ -473,11 +475,11 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						e.pos = pop(&e.creature.path)
 						e.creature.action_ticker -= TEMP_MOVE_COST
 					} else {
-						mat := mine_tile(m, target_pos)
+						mat := mine_tile(mmap, target_pos)
 						e.creature.action_ticker -= TEMP_MINE_COST
 						complete_order(order_queue, e.creature.current_order_idx)
 						e.creature.current_order_idx = 0
-						tile := get_map_tile(m, target_pos)
+						tile := get_map_tile(mmap, target_pos)
 						tile.order_idx = 0
 						if tile.content.drops {
 							i := add_entity(entities, .Material, target_pos)
@@ -494,7 +496,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					produce := e.creature.task.production_type
 					building := entities[b_idx]
 					if !are_adjacent(e.pos, building.pos) {
-						if len(e.creature.path) == 0 do find_path(&s.m, e.pos, building.pos, &e.creature.path)
+						if len(e.creature.path) == 0 do find_path(mmap, e.pos, building.pos, &e.creature.path)
 						e.pos = pop(&e.creature.path)
 						e.creature.action_ticker -= TEMP_MOVE_COST
 					} else {
@@ -514,8 +516,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						if order.target_count == 0 {
 							complete_order(order_queue, e.creature.current_order_idx)
 						}
-						if s.menus.menus[.WorkOrderMenu].visible {
-							populate_order_menu(&s.menus, order_queue)
+						if menus.menus[.WorkOrderMenu].visible {
+							populate_order_menu(menus, order_queue)
 						}
 					}
 				}
@@ -539,7 +541,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 
 							complete_order(order_queue, e.creature.current_order_idx)
 							e.creature.current_order_idx = 0
-							get_map_tile(m, building.pos).order_idx = 0
+							get_map_tile(mmap, building.pos).order_idx = 0
 							e.creature.task = {}
 						}
 					}
@@ -565,7 +567,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 
 							complete_order(order_queue, e.creature.current_order_idx)
 							e.creature.current_order_idx = 0
-							get_map_tile(m, building.pos).order_idx = 0
+							get_map_tile(mmap, building.pos).order_idx = 0
 							e.creature.task = {}
 						}
 					}
@@ -590,7 +592,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						e.creature.action_ticker -= TEMP_MOVE_COST
 					} else {
 						if picking_up {
-							reachable := find_path(&s.m, e.pos, ety.pos, &e.creature.path)
+							reachable := find_path(mmap, e.pos, ety.pos, &e.creature.path)
 							if reachable
 							{
 								e.creature.action_ticker -= TEMP_MOVE_COST
@@ -628,12 +630,12 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		}
 
 		/* SEC: Entity Render */
-		if e.pos.z == s.cam.focus.z {
+		if e.pos.z == cam.focus.z {
 			switch e.type {
 			case .Null: {}
 			case .Production: {}
 			case .Creature: {
-				visible, screen_tile := camera_xform(s.cam, e.pos)
+				visible, screen_tile := camera_xform(cam^, e.pos)
 				if visible {
 					plot_tile(screen_tile, white, black, .AT)
 					has_creature[screen_tile.x + (screen_tile.y * COLS)] = true
@@ -641,7 +643,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			}
 			case .Building: {
 				if e.building.type == .Tree {
-					visible, screen_tile := camera_xform(s.cam, e.pos)
+					visible, screen_tile := camera_xform(cam^, e.pos)
 					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
 						plot_tile(screen_tile, white, black, .O)
 					}
@@ -663,7 +665,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					for o, i in offset {
 						tile := e.pos + o
 						fg := fg2 if o.xy == {2,2} else fg1
-						visible, screen_tile := camera_xform(s.cam, tile)
+						visible, screen_tile := camera_xform(cam^, tile)
 						if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
 							plot_tile(screen_tile, fg, background, glyphs[i])
 						}
@@ -672,7 +674,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			}
 			case .Material: {
 				if e.in_inventory_of == 0 && e.in_building == 0 {
-					visible, screen_tile := camera_xform(s.cam, e.pos)
+					visible, screen_tile := camera_xform(cam^, e.pos)
 					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
 						color := tree_brown if e.material.type in is_wood else stone_grey
 						plot_tile(screen_tile, color, black, .M)
@@ -693,12 +695,12 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		rebuild_work_order_menu := false
 
 		hot = NULL_UIID
-		for &element in s.menus.elements {
+		for &element in menus.elements {
 			id := element.id
 			el_idx := element.id.element_idx
 			// TODO: ID Should just store the menu index?
 			menu_name := MenuName(id.menu_idx)
-			menu := &s.menus.menus[menu_name]
+			menu := menus.menus[menu_name]
 			if !menu.visible do continue
 			rect := rect_adjust(element.rect, menu.rect.xy)
 			switch element.type {
@@ -709,36 +711,36 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					case .Null: {}
 					case .MainBar: {
 						if element.state == .None {
-							null_menu_state(&s.menus)
+							null_menu_state(menus)
 							element.state = .Depressed
-							s.interaction_mode = InteractionMode(id.element_idx+1)
+							state.interaction_mode = InteractionMode(id.element_idx+1)
 							if element.submenu != .Null {
 								switch element.submenu {
 								case .Null, .MainBar, .BuildingSelector, .MaterialSelection, .EntityMenu, .AddWorkOrderMenu: {}
 								case .WorkOrderMenu: {
-									s.im_temp_entity_buffer = populate_order_menu(&s.menus, order_queue)
+									state.im_temp_entity_buffer = populate_order_menu(menus, order_queue)
 								}
 								}
-								s.menus.menus[element.submenu].visible = true
+								menus.menus[element.submenu].visible = true
 							}
 						} else if element.state == .Depressed {
 							// Deactivate the related interaction mode
-							null_menu_state(&s.menus)
-							s.interaction_mode = .Map
+							null_menu_state(menus)
+							state.interaction_mode = .Map
 						}
 					}
 					case .BuildingSelector: {
 						if el_idx == len(menu.element_idx)-1 {
 							// CLOSE
-							s.interaction_mode = .Map
+							state.interaction_mode = .Map
 							menu.visible = false
-							s.im_building_selection = .Null
-							for other_idx in 0..<len(s.menus.menus[.MainBar].element_idx) {
-								get_element_by_menu_idx(&s.menus, .MainBar, other_idx).state = .None
+							state.im_building_selection = .Null
+							for other_idx in 0..<len(menus.menus[.MainBar].element_idx) {
+								get_element_by_menu_idx(menus, .MainBar, other_idx).state = .None
 							}
 						} else {
 							if element.state == .Depressed {
-								s.im_building_selection = .Null
+								state.im_building_selection = .Null
 								element.state = .None
 							} else {
 								i := -1
@@ -748,69 +750,69 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 									c += 1
 									if i == el_idx do break
 								}
-								s.im_building_selection = BuildingType(c)
-								s.menus.menus[.BuildingSelector].visible = false
-								s.interaction_mode = .Build
+								state.im_building_selection = BuildingType(c)
+								menus.menus[.BuildingSelector].visible = false
+								state.interaction_mode = .Build
 							}
 						}
 					}
 					case .MaterialSelection: {
-						if el_idx == len(s.im_temp_entity_buffer) {
+						if el_idx == len(state.im_temp_entity_buffer) {
 							// cancel
-							delete(s.im_temp_entity_buffer)
-							clear_menu(&s.menus, .MaterialSelection)
-							s.interaction_mode = .Map
-							null_menu_state(&s.menus)
-							remove_entity(entities, s.im_selected_entity_idx)
-							s.im_selected_entity_idx = 0
+							delete(state.im_temp_entity_buffer)
+							clear_menu(menus, .MaterialSelection)
+							state.interaction_mode = .Map
+							null_menu_state(menus)
+							remove_entity(entities, state.im_selected_entity_idx)
+							state.im_selected_entity_idx = 0
 						} else {
-							e_idx := s.im_selected_entity_idx
+							e_idx := state.im_selected_entity_idx
 							e := &entities[e_idx]
 							e.building.status = .PendingConstruction
-							mat_idx := s.im_temp_entity_buffer[el_idx]
+							mat_idx := state.im_temp_entity_buffer[el_idx]
 							// NOTE: Doesn't actually put the mat in the inv, just a 'placeholder'
 							// for indicating that the material needs to be fetched to construct the building.
 							// This is possible a silly idea
 							append(&e.inventory, mat_idx)
 							add_order(order_queue, .Construct, e.pos, e_idx)
-							delete(s.im_temp_entity_buffer)
-							clear_menu(&s.menus, .MaterialSelection)
-							s.interaction_mode = .Map
-							null_menu_state(&s.menus)
+							delete(state.im_temp_entity_buffer)
+							clear_menu(menus, .MaterialSelection)
+							state.interaction_mode = .Map
+							null_menu_state(menus)
 						}
 					}
 					case .EntityMenu: {
 						if el_idx == len(menu.element_idx)-1 // Close is last element
 						{
-							s.interaction_mode = .Map
+							state.interaction_mode = .Map
 							menu.visible = false
 						}
 						else if el_idx == len(menu.element_idx)-2 // deconstruct
 						{
-							b_idx := s.im_selected_entity_idx
+							b_idx := state.im_selected_entity_idx
 							// TODO: BUG this doesn't work, needs V3i to be set, apparently
 							add_order(order_queue, .Deconstruct, {0,0,0}, b_idx)
-							s.interaction_mode = .Map
+							state.interaction_mode = .Map
 							menu.visible = false
 						}
 					}
 					case .WorkOrderMenu: {
 						if el_idx == 0 // cancel
 						{
-							s.interaction_mode = .Map
-							delete(s.im_temp_entity_buffer)
-							null_menu_state(&s.menus)
+							state.interaction_mode = .Map
+							delete(state.im_temp_entity_buffer)
+							null_menu_state(menus)
 						} else if el_idx == len((menu.element_idx))-1 // last button is new
 						{
-							clear_menu(&s.menus, .WorkOrderMenu)
-							s.menus.menus[.WorkOrderMenu].visible = false
-							populate_place_order_menu(&s.menus)
+							clear_menu(menus, .WorkOrderMenu)
+							menus.menus[.WorkOrderMenu].visible = false
+							populate_place_order_menu(menus)
 						} else if el_idx > 1 // 2nd element is a header label
 						{
 							// each 'row' has 5 elements: Type, Qty, Plus, Minus, Cancel
 							tmp_idx := (el_idx-2)/5
 							action := (el_idx-2)%5 - 2 // 0: add, 1: decrease, 2: cancel
-							order_idx := s.im_temp_entity_buffer[tmp_idx]
+							order_idx := state.im_temp_entity_buffer[tmp_idx]
 							order := &order_queue.orders[order_idx]
 							if action == 0 {
 								order.target_count += 1
@@ -829,12 +831,12 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					case .AddWorkOrderMenu: {
 						if el_idx == 0 // cancel
 						{
-							s.interaction_mode = .Map
-							null_menu_state(&s.menus)
+							state.interaction_mode = .Map
+							null_menu_state(menus)
 						}  else if el_idx > 1 // 2nd element is a header label
 						{
 							add_order(order_queue, .Produce, idx = el_idx-2, count = 10)
-							s.menus.menus[.AddWorkOrderMenu].visible = false // NOTE: memory will be cleared up on next call to populate
+							menus.menus[.AddWorkOrderMenu].visible = false // NOTE: memory will be cleared up on next call to populate
 							rebuild_work_order_menu = true
 						}
 					}
@@ -848,20 +850,20 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		}
 
 		if rebuild_work_order_menu {
-			delete(s.im_temp_entity_buffer)
-			s.im_temp_entity_buffer = populate_order_menu(&s.menus, order_queue)
+			delete(state.im_temp_entity_buffer)
+			state.im_temp_entity_buffer = populate_order_menu(menus, order_queue)
 		}
 
 		if hot == NULL_UIID {
 
-			switch s.interaction_mode {
+			switch state.interaction_mode {
 			case .EntityInteract, .Stockpile: {}
 			case .Map: {
 				// NOTE: Not sure if I want to do hover visibility just in normal map mode
 				/* plot_tile(flip(s.hovered_tile.xy), black, red, .BLANK) */
 
-				tile := get_map_tile(m, s.hovered_tile)
-				entities_at_cursor := get_entities_at_pos(entities, s.hovered_tile)
+				tile := get_map_tile(mmap, state.hovered_tile)
+				entities_at_cursor := get_entities_at_pos(entities, state.hovered_tile)
 				y_start := 1
 				if tile.content.shape != .Wall || tile.exposed {
 					write_string_to_screen({0,y_start}, fmt.tprint(tile.content.made_of.type, tile.content.shape), white, black)
@@ -884,63 +886,63 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				if lmb {
 					if len(entities_at_cursor) > 0 {
 						eidx := entities_at_cursor[0]
-						s.im_selected_entity_idx = eidx
-						s.interaction_mode = .EntityInteract
-						populate_entity_menu(&s.menus, entities[s.im_selected_entity_idx], entities[:])
-						s.menus.menus[.EntityMenu].visible = true
+						state.im_selected_entity_idx = eidx
+						state.interaction_mode = .EntityInteract
+						populate_entity_menu(menus, entities[state.im_selected_entity_idx], entities[:])
+						menus.menus[.EntityMenu].visible = true
 					}
 				}
 			}
 			case .CutTrees: {
-				visible, screen_tile := camera_xform(s.cam, s.hovered_tile)
+				visible, screen_tile := camera_xform(cam^, state.hovered_tile)
 				if visible {
 					plot_tile(screen_tile, black, red, .BLANK)
 				}
 				if lmb {
-					es := get_entities_at_pos(entities, s.hovered_tile)
+					es := get_entities_at_pos(entities, state.hovered_tile)
 					for e_i in es {
 						if entities[e_i].type == .Building {
-							add_order(order_queue, .CutTree, s.hovered_tile, e_i)
+							add_order(order_queue, .CutTree, state.hovered_tile, e_i)
 						}
 					}
 				}
 			}
 			case .Mine: {
-				if !s.im_toggle {
+				if !state.im_toggle {
 					if lmb {
-						s.im_toggle = true
-						s.im_ref_pos = s.hovered_tile
+						state.im_toggle = true
+						state.im_ref_pos = state.hovered_tile
 					}
-					visible, screen_tile := camera_xform(s.cam, s.hovered_tile)
+					visible, screen_tile := camera_xform(cam^, state.hovered_tile)
 					if visible {
 						plot_tile(screen_tile, black, red, .BLANK)
 					}
 				} else {
-					v_min := vec_min(s.im_ref_pos, s.hovered_tile)
-					v_max := vec_max(s.im_ref_pos, s.hovered_tile)
+					v_min := vec_min(state.im_ref_pos, state.hovered_tile)
+					v_max := vec_max(state.im_ref_pos, state.hovered_tile)
 					assert(v_min.z==v_max.z)
 					for x in v_min.x..=v_max.x {
 						for y in v_min.y..=v_max.y {
-							tile := get_map_tile(m, {x,y,v_min.z})
+							tile := get_map_tile(mmap, {x,y,v_min.z})
 							if tile.content.shape == .Wall {
 								if lmb do tile.order_idx = add_order(order_queue, .Mine, {x,y,v_min.z})
-								visible, screen_tile := camera_xform(s.cam, {x,y,v_min.z})
+								visible, screen_tile := camera_xform(cam^, {x,y,v_min.z})
 								if visible {
 									plot_tile(screen_tile, black, red, .BLANK)
 								}
 							}
 						}
 					}
-					if lmb do s.im_toggle = false
+					if lmb do state.im_toggle = false
 				}
 			}
 			case .Build: {
-				if s.im_building_selection != .Null {
-					e_def := B_PROTOS[s.im_building_selection]
+				if state.im_building_selection != .Null {
+					e_def := B_PROTOS[state.im_building_selection]
 					for x in 0..<e_def.dims.x {
 						for y in 0..<e_def.dims.y {
-							tile := s.hovered_tile + {x,y,0}
-							visible, screen_tile := camera_xform(s.cam, tile)
+							tile := state.hovered_tile + {x,y,0}
+							visible, screen_tile := camera_xform(cam^, tile)
 							if visible {
 								plot_tile(screen_tile, white, black, .X)
 							}
@@ -949,14 +951,14 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				}
 
 				if lmb {
-					if s.im_building_selection != .Null {
-						s.im_ref_pos = s.hovered_tile
-						idx := building_construction_request(entities, s.im_building_selection, s.hovered_tile)
-						s.im_selected_entity_idx = idx
-						s.im_temp_entity_buffer = get_construction_materials(entities[:])
-						populate_material_selector(&s.menus, entities[:], s.im_temp_entity_buffer)
-						s.menus.menus[.MaterialSelection].visible = true
-						s.interaction_mode = .Map
+					if state.im_building_selection != .Null {
+						state.im_ref_pos = state.hovered_tile
+						idx := building_construction_request(entities, state.im_building_selection, state.hovered_tile)
+						state.im_selected_entity_idx = idx
+						state.im_temp_entity_buffer = get_construction_materials(entities[:])
+						populate_material_selector(menus, entities[:], state.im_temp_entity_buffer)
+						menus.menus[.MaterialSelection].visible = true
+						state.interaction_mode = .Map
 					}
 
 				}

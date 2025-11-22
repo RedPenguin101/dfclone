@@ -18,9 +18,7 @@ Change reference point of workshops to center
 
 Refactor
 --------
-Make Menus a loop local so don't have to & ref all the time
 Give map / entity a better name in game struct
-Give map local a better name
 
 UI/Platform
 -----------
