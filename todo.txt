@@ -1,7 +1,8 @@
 Gameplay
 --------
+BUG: BuildingEntity Menu: Shouldn't show the materials which are used to make the building
+BUG: When a building is desconstructed it should put its inventory around the area
 Place the Bed.
-When a building is desconstructed it should put its inventory around the area (Should already do that? Bug?)
 
 Building a bed creates an order to haul the bed to a stockpile.
 Orders: periodically reassess order viability. e.g. produce order is not viable when no workshop is available. In order loop, should occassionaly check if something has opened up. Also, create order loop

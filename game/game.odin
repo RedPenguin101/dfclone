@@ -23,10 +23,6 @@ TEMP_PRODUCE_COST :: 0.1
  * SEC: Constants *
  ******************/
 
-NONE :: -1
-map_start :: 0.0
-tile_size :: 0.04
-
 /* Colors */
 
 black := Color{0,0,0,1}
@@ -217,7 +213,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		cam.focus = {5,10,1}
 		cam.dims  = {COLS, ROWS, 1}
 
-		mmap^ = init_map({20, 20, 3})
+		mmap^ = init_map({100, 100, 3})
 		INIT_DUMMY_MAP(mmap)
 
 		add_creature(entities, .Dwarf, {5, 10, 1}, fmt.aprint("Iton"))
@@ -701,7 +697,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			el_idx := element.id.element_idx
 			// TODO: ID Should just store the menu index?
 			menu_name := MenuName(id.menu_idx)
-			menu := menus.menus[menu_name]
+			menu := &menus.menus[menu_name]
 			if !menu.visible do continue
 			rect := rect_adjust(element.rect, menu.rect.xy)
 			switch element.type {
