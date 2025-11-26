@@ -517,7 +517,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							complete_order(order_queue, e.creature.current_order_idx)
 						}
 						if menus.menus[.WorkOrderMenu].visible {
-							populate_order_menu(menus, order_queue)
+							// TODO: Fix leak
+							state.im_temp_entity_buffer = populate_order_menu(menus, order_queue)
 						}
 					}
 				}
@@ -718,6 +719,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 								switch element.submenu {
 								case .Null, .MainBar, .BuildingSelector, .MaterialSelection, .EntityMenu, .AddWorkOrderMenu: {}
 								case .WorkOrderMenu: {
+									// TODO: fix leak
 									state.im_temp_entity_buffer = populate_order_menu(menus, order_queue)
 								}
 								}
@@ -759,7 +761,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					case .MaterialSelection: {
 						if el_idx == len(state.im_temp_entity_buffer) {
 							// cancel
-							delete(state.im_temp_entity_buffer)
+							delete	(state.im_temp_entity_buffer)
 							clear_menu(menus, .MaterialSelection)
 							state.interaction_mode = .Map
 							null_menu_state(menus)
