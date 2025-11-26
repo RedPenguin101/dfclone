@@ -8,7 +8,9 @@ textf :: fmt.aprintf
 MenuName :: enum {
 	Null,
 	MainBar,
-	BuildingSelector,
+	ConstructionSelector,
+	WorkshopConstructionSelector,
+	ProdItemConstructionSelector,
 	MaterialSelection,
 	EntityMenu,
 	WorkOrderMenu,
@@ -105,7 +107,7 @@ setup_menus :: proc(m:^MenuState) {
 
 		btn.rect += btn_delta
 		btn.text = text("Bld")
-		btn.submenu = .BuildingSelector
+		btn.submenu = .ConstructionSelector
 		add_element(m, .MainBar, btn)
 
 		btn.rect += btn_delta
@@ -119,8 +121,67 @@ setup_menus :: proc(m:^MenuState) {
 		add_element(m, .MainBar, btn)
 	}
 	{
-		main := &m.menus[.BuildingSelector]
-		main.name = .BuildingSelector
+		main := &m.menus[.WorkshopConstructionSelector]
+		main.name = .WorkshopConstructionSelector
+		main.rect = {30, 5, 60, 20}
+		main.visible = false
+		btn_start := TileRect{0,0,30,1}
+		btn_delta := TileRect{0,1,0,1}
+
+		btn : MenuElement
+
+		for buildable in ProductionType {
+			if !(.Placeable in production_template[buildable].attributes) do continue
+			btn = MenuElement{
+				type = .Button,
+				rect = btn_start,
+				text = text(buildable),
+			}
+			btn_start += btn_delta
+			add_element(m, .ProdItemConstructionSelector, btn)
+		}
+
+		btn = MenuElement{
+			type = .Button,
+			rect = btn_start,
+			text = text("CLOSE"),
+		}
+		add_element(m, .ProdItemConstructionSelector, btn)
+	}
+	{
+		main := &m.menus[.ConstructionSelector]
+		main.name = .ConstructionSelector
+		main.rect = {30, 5, 60, 20}
+		main.visible = false
+		btn_start := TileRect{0,0,30,1}
+		btn_delta := TileRect{0,1,0,1}
+
+		btn : MenuElement
+		btn.type = .Button
+		btn.rect = btn_start
+		btn.text = text("Workshops")
+		btn.submenu = .WorkshopConstructionSelector
+		add_element(m, .ConstructionSelector, btn)
+
+		btn_start += btn_delta
+
+		btn.rect = btn_start
+		btn.text = text("Furniture")
+		btn.submenu = .ProdItemConstructionSelector
+		add_element(m, .ConstructionSelector, btn)
+		btn_start += btn_delta
+
+		btn = MenuElement{
+			type = .Button,
+			rect = btn_start,
+			text = text("CLOSE"),
+			submenu = .Null
+		}
+		add_element(m, .ConstructionSelector, btn)
+	}
+	{
+		main := &m.menus[.ProdItemConstructionSelector]
+		main.name = .ProdItemConstructionSelector
 		main.rect = {30, 5, 60, 20}
 		main.visible = false
 		btn_start := TileRect{0,0,30,1}
@@ -135,7 +196,7 @@ setup_menus :: proc(m:^MenuState) {
 				text = text(buildable),
 			}
 			btn_start += btn_delta
-			add_element(m, .BuildingSelector, btn)
+			add_element(m, .WorkshopConstructionSelector, btn)
 		}
 
 		btn = MenuElement{
@@ -143,7 +204,7 @@ setup_menus :: proc(m:^MenuState) {
 			rect = btn_start,
 			text = text("CLOSE"),
 		}
-		add_element(m, .BuildingSelector, btn)
+		add_element(m, .WorkshopConstructionSelector, btn)
 	}
 	for name in MenuName {
 		m.menus[name].name = name
@@ -282,11 +343,16 @@ populate_material_selector :: proc(m:^MenuState, entities:[]Entity, indices:[]in
 	btn : MenuElement
 
 	for idx in indices {
-		type := entities[idx].material.type
+		e := entities[idx]
+		// TODO: This should be a switch
 		btn = MenuElement{
 			type = .Button,
 			rect = btn_start,
-			text = textf("%v", type),
+		}
+		if e.type == .Material {
+			btn.text = text(e.material.type)
+		} else {
+			btn.text = text(e.production.type)
 		}
 		add_element(m, .MaterialSelection, btn)
 		btn_start += btn_delta

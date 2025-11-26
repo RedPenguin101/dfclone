@@ -120,6 +120,7 @@ GameState :: struct {
 
 	interaction_mode:InteractionMode,
 	im_building_selection:BuildingType,
+	im_production_selection:ProductionType,
 	im_selected_entity_idx:int,
 	im_toggle:bool,
 	im_ref_pos:V3i,
@@ -645,6 +646,14 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
 						plot_tile(screen_tile, white, black, .O)
 					}
+				} else if e.building.type == .PlacedProdItem {
+					visible, screen_tile := camera_xform(cam^, e.pos)
+					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
+						// placed item is the first (and only) element in the inventory
+						prod_item := entities[e.inventory[0]].production.type
+						glyph := production_template[prod_item].glyph
+						plot_tile(screen_tile, white, black, glyph)
+					}
 				} else if e.building.type in is_workshop {
 					background := black
 					fg1 := white
@@ -724,7 +733,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							state.interaction_mode = InteractionMode(id.element_idx+1)
 							if element.submenu != .Null {
 								switch element.submenu {
-								case .Null, .MainBar, .BuildingSelector, .MaterialSelection, .EntityMenu, .AddWorkOrderMenu: {}
+								case .Null, .MainBar, .ConstructionSelector, .ProdItemConstructionSelector, .WorkshopConstructionSelector, .MaterialSelection, .EntityMenu, .AddWorkOrderMenu: {}
 								case .WorkOrderMenu: {
 									// TODO: fix leak
 									state.im_temp_entity_buffer = populate_order_menu(menus, order_queue)
@@ -738,7 +747,41 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							state.interaction_mode = .Map
 						}
 					}
-					case .BuildingSelector: {
+					case .ConstructionSelector: {
+						menu.visible = false
+						menus.menus[element.submenu].visible = true
+					}
+					case .ProdItemConstructionSelector: {
+						if el_idx == len(menu.element_idx)-1 {
+							// CLOSE
+							state.interaction_mode = .Map
+							menu.visible = false
+							state.im_building_selection = .Null
+							// TODO: This resets the main bar. think I have a function for this now
+							for other_idx in 0..<len(menus.menus[.MainBar].element_idx) {
+								get_element_by_menu_idx(menus, .MainBar, other_idx).state = .None
+							}
+						} else {
+							if element.state == .Depressed {
+								state.im_building_selection = .Null
+								state.im_production_selection = .Null
+								element.state = .None
+							} else {
+								i := -1
+								c := -1
+								for btype in ProductionType {
+									if .Placeable in production_template[btype].attributes do i+=1
+									c += 1
+									if i == el_idx do break
+								}
+								state.im_building_selection = .PlacedProdItem
+								state.im_production_selection = ProductionType(c)
+								menus.menus[.ProdItemConstructionSelector].visible = false
+								state.interaction_mode = .Build
+							}
+						}
+					}
+					case .WorkshopConstructionSelector: {
 						if el_idx == len(menu.element_idx)-1 {
 							// CLOSE
 							state.interaction_mode = .Map
@@ -760,7 +803,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 									if i == el_idx do break
 								}
 								state.im_building_selection = BuildingType(c)
-								menus.menus[.BuildingSelector].visible = false
+								menus.menus[.WorkshopConstructionSelector].visible = false
 								state.interaction_mode = .Build
 							}
 						}
@@ -888,7 +931,12 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						str = fmt.tprint(entity.creature.type, entity.creature.name)
 					}
 					case .Building: {
-						str = fmt.tprint(entity.building.type)
+						if entity.building.type == .PlacedProdItem {
+							prod_item := entities[entity.inventory[0]].production.type
+							str = fmt.tprint(prod_item, "(Placed)")
+						} else {
+							str = fmt.tprint(entity.building.type)
+						}
 					}
 					case .Material: {
 						str = fmt.tprint(entity.material.type)
@@ -972,7 +1020,12 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						state.im_ref_pos = state.hovered_tile
 						idx := building_construction_request(entities, state.im_building_selection, state.hovered_tile)
 						state.im_selected_entity_idx = idx
-						state.im_temp_entity_buffer = get_construction_materials(entities[:])
+						if state.im_building_selection == .PlacedProdItem {
+							types := bit_set[ProductionType]{state.im_production_selection}
+							state.im_temp_entity_buffer = get_production_items(entities[:], types)
+						} else {
+							state.im_temp_entity_buffer = get_construction_materials(entities[:])
+						}
 						populate_material_selector(menus, entities[:], state.im_temp_entity_buffer)
 						menus.menus[.MaterialSelection].visible = true
 						state.interaction_mode = .Map

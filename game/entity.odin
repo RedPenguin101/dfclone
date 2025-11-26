@@ -150,3 +150,13 @@ get_construction_materials :: proc(es:[]Entity) -> []int {
 	}
 	return mats[:]
 }
+
+get_production_items :: proc(es:[]Entity, types:bit_set[ProductionType]) -> []int {
+	mats := make([dynamic]int)
+	for e, i in es {
+		if e.type == .Production && e.in_building == 0 && e.production.type in types {
+			append(&mats, i)
+		}
+	}
+	return mats[:]
+}

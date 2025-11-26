@@ -1,11 +1,12 @@
 package game
 
-ProductionType :: enum { Bed, Door }
+ProductionType :: enum { Null, Bed, Door }
 
 AttributeName :: enum {
 	SleepIn,
 	SitAt,
 	Openable,
+	Placeable,
 }
 
 ProductionTemplate :: struct {
@@ -16,11 +17,12 @@ ProductionTemplate :: struct {
 }
 
 production_template := [ProductionType]ProductionTemplate {
+		.Null = {},
 		.Bed = {
-				.B, is_wood, {.Carpenter}, {.SleepIn},
+				.B, is_wood, {.Carpenter}, {.SleepIn, .Placeable},
 		},
 		.Door = {
-				.D, is_stone, {.StoneMason}, {.Openable},
+				.D, is_stone, {.StoneMason}, {.Openable, .Placeable},
 		}
 }
 

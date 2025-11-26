@@ -1,6 +1,6 @@
 package game
 
-BuildingType :: enum { Null, Tree, StoneMason, Carpenter }
+BuildingType :: enum { Null, Tree, StoneMason, Carpenter, PlacedProdItem }
 
 BuildingStatus :: enum { Null, PendingMaterialAssignment, PendingConstruction, Normal, PendingDeconstruction, }
 
@@ -16,6 +16,7 @@ BuildingPrototype :: struct {
 B_PROTOS := [BuildingType]BuildingPrototype {
         .Null = {},
         .Tree = {},
+	    .PlacedProdItem = {{1,1,1},{}},
         .StoneMason = {
 			{3,3,1},
 			{.EQ, .CDOT, .HAT2 ,
