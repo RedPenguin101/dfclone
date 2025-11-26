@@ -27,3 +27,9 @@ production_template := [ProductionType]ProductionTemplate {
 Production :: struct {
 	type : ProductionType,
 }
+
+add_production_item :: proc(es:^[dynamic]Entity, type:ProductionType, pos:V3i) -> int {
+	i := add_entity(es, .Production, pos)
+	es[i].production = {type}
+	return i
+}

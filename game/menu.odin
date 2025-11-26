@@ -69,6 +69,7 @@ clear_menu :: proc(m:^MenuState, menu_name:MenuName) {
 	for el_idx in m.menus[menu_name].element_idx {
 		delete(m.elements[el_idx].text)
 		m.elements[el_idx] = {}
+		// TODO: This is leaking apparently? Not sure how.
 		append(&ME_FREE_STACK, el_idx)
 	}
 	clear(&m.menus[menu_name].element_idx)

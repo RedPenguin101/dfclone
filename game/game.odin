@@ -259,6 +259,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			status = .Normal,
 		}
 
+		add_production_item(entities, .Bed, {9, 8, 1})
+
 		setup_menus(menus)
 		memory.initialized = true
 	}
@@ -630,7 +632,6 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		if e.pos.z == cam.focus.z {
 			switch e.type {
 			case .Null: {}
-			case .Production: {}
 			case .Creature: {
 				visible, screen_tile := camera_xform(cam^, e.pos)
 				if visible {
@@ -666,6 +667,16 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
 							plot_tile(screen_tile, fg, background, glyphs[i])
 						}
+					}
+				}
+			}
+			case .Production: {
+				if e.in_inventory_of == 0 && e.in_building == 0 {
+					visible, screen_tile := camera_xform(cam^, e.pos)
+					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
+						glyph := production_template[e.production.type].glyph
+						color := tree_brown
+						plot_tile(screen_tile, color, black, glyph)
 					}
 				}
 			}
@@ -871,12 +882,20 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				for e, i in entities_at_cursor {
 					entity := entities[e]
 					str : string
-					if entity.type == .Creature {
+					switch entity.type {
+					case .Null: {}
+					case .Creature: {
 						str = fmt.tprint(entity.creature.type, entity.creature.name)
-					} else if entity.type == .Building {
+					}
+					case .Building: {
 						str = fmt.tprint(entity.building.type)
-					} else if entity.type == .Material {
+					}
+					case .Material: {
 						str = fmt.tprint(entity.material.type)
+					}
+					case .Production: {
+						str = fmt.tprint(entity.production.type)
+					}
 					}
 					write_string_to_screen({0, y_start+i}, str, yellow, black)
 				}
