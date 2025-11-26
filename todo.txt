@@ -1,7 +1,5 @@
 Gameplay
 --------
-BUG: BuildingEntity Menu: Shouldn't show the materials which are used to make the building
-BUG: When a building is desconstructed it should put its inventory around the area
 Place the Bed.
 
 Building a bed creates an order to haul the bed to a stockpile.

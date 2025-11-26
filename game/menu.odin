@@ -176,6 +176,7 @@ populate_building_menu :: proc(m:^MenuState, e:Entity, es:[]Entity) {
 
 	for inv_idx in e.inventory {
 		inv_item := es[inv_idx]
+		if inv_item.in_building != 0 do continue
 		btn.rect += next_row
 		if inv_item.type == .Material {
 			btn.text = text(inv_idx, inv_item.material.type)
