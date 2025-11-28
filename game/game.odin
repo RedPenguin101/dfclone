@@ -226,6 +226,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		add_material(entities, .Wood_Oak, {9,6,1})
 		add_material(entities, .Wood_Oak, {9,7,1})
 		add_production_item(entities, .Bed, {9, 8, 1})
+		add_stockpile(entities, {3, 15, 1}, {5,5,1})
 
 		t := add_entity(entities, .Building, {4,5,1})
 		entities[t].dim = {3,3,1}
@@ -670,7 +671,16 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					}
 				}
 			}
-			case .Stockpile: {}
+			case .Stockpile: {
+				for x in 0..<e.dim.x {
+					for y in 0..<e.dim.y {
+						visible, screen_tile := camera_xform(cam^, e.pos+{x,y,0})
+						if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
+							plot_tile(screen_tile, white, black, .EQ)
+						}
+					}
+				}
+			}
 
 			}
 		}
@@ -887,6 +897,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				// NOTE: Not sure if I want to do hover visibility just in normal map mode
 				/* plot_tile(flip(s.hovered_tile.xy), black, red, .BLANK) */
 
+				/* SEC: Hover Tile */
 				tile := get_map_tile(mmap, state.hovered_tile)
 				entities_at_cursor := get_entities_at_pos(entities, state.hovered_tile)
 				y_start := 1
@@ -899,7 +910,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					entity := entities[e]
 					str : string
 					switch entity.type {
-					case .Stockpile: {}
+					case .Stockpile: {
+						str = fmt.tprint("Stockpile")
+					}
 					case .Null: {}
 					case .Creature: {
 						str = fmt.tprint(entity.creature.type, entity.creature.name)

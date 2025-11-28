@@ -25,7 +25,6 @@ Entity :: struct {
 	material:Material,
 	creature:Creature,
 	production:Production,
-	stockpile:Stockpile,
 	inventory:[dynamic]int,
 }
 
@@ -338,6 +337,8 @@ add_tree :: proc(es:^[dynamic]Entity, mat:MaterialType, pos:V3i, height:int) -> 
  * Stockpiles *
  **************/
 
-Stockpile :: struct {
-	
+add_stockpile :: proc(es:^[dynamic]Entity, pos:V3i, dims:V3i) -> int {
+	i := add_entity(es, .Stockpile, pos)
+	es[i].dim = dims
+	return i
 }
