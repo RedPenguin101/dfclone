@@ -650,7 +650,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					visible, screen_tile := camera_xform(cam^, e.pos)
 					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
 						// placed item is the first (and only) element in the inventory
-						prod_item := entities[e.inventory[0]].production.type
+						prod_item := e.production.type
 						glyph := production_template[prod_item].glyph
 						plot_tile(screen_tile, white, black, glyph)
 					}
@@ -934,7 +934,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					}
 					case .Building: {
 						if entity.building.type == .PlacedProdItem {
-							prod_item := entities[entity.inventory[0]].production.type
+							prod_item := entity.production.type
 							str = fmt.tprint(prod_item, "(Placed)")
 						} else {
 							str = fmt.tprint(entity.building.type)
@@ -1022,10 +1022,15 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						state.im_ref_pos = state.hovered_tile
 						idx := building_construction_request(entities, state.im_building_selection, state.hovered_tile)
 						state.im_selected_entity_idx = idx
-						if state.im_building_selection == .PlacedProdItem {
+						if state.im_building_selection == .PlacedProdItem
+						{
 							types := bit_set[ProductionType]{state.im_production_selection}
 							state.im_temp_entity_buffer = get_production_items(entities[:], types)
-						} else {
+							entities[idx].production.type = state.im_production_selection
+							DBG(entities[idx].production)
+						}
+						else
+						{
 							state.im_temp_entity_buffer = get_construction_materials(entities[:])
 						}
 						populate_material_selector(menus, entities[:], state.im_temp_entity_buffer)
