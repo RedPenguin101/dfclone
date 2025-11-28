@@ -23,18 +23,6 @@ Entity :: struct {
 	inventory:[dynamic]int,
 }
 
-building_construction_request :: proc(es:^[dynamic]Entity, type:BuildingType, pos:V3i) -> int {
-	building := Building{
-		type = type,
-		status = .PendingMaterialAssignment,
-		deconstruction_percentage = 1,
-	}
-	i := add_entity(es, .Building, pos)
-	es[i].building = building
-	es[i].dim = B_PROTOS[type].dims
-	return i
-}
-
 add_entity :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
 	new_entity := Entity{
 		type              = type,
@@ -53,33 +41,6 @@ add_entity :: proc(es:^[dynamic]Entity, type:EntityType, pos:V3i) -> int {
 
 	}
 	return idx
-}
-
-add_creature :: proc(es:^[dynamic]Entity, type:CreatureType, pos:V3i, name:string) -> int {
-	c := Creature{
-		type = type,
-		name = name,
-		task = {},
-		action_ticker = 0.2
-	}
-	i := add_entity(es, .Creature, pos)
-	es[i].creature = c
-	return i
-}
-
-add_tree :: proc(es:^[dynamic]Entity, mat:MaterialType, pos:V3i, height:int) -> int {
-	i := add_entity(es, .Building, pos)
-	es[i].building = {.Tree, .Normal, 0}
-
-	for idx in 0..<height {
-		j := add_entity(es, .Material, pos+{0,0,idx})
-		es[j].material.type = mat
-		es[j].material.form = .Natural
-		es[j].in_building = i
-		append(&es[i].inventory, j)
-	}
-
-	return i
 }
 
 E_FREE_STACK : [dynamic]int
@@ -143,32 +104,15 @@ get_entities_at_pos :: proc(es:^[dynamic]Entity, pos:V3i) -> []int {
 	return E_BUFF[:idx]
 }
 
-get_construction_materials :: proc(es:[]Entity) -> []int {
-	mats := make([dynamic]int)
-	for e, i in es {
-		if e.type == .Material && e.in_inventory_of == 0 && e.in_building == 0 {
-			append(&mats, i)
-		}
-	}
-	return mats[:]
-}
-
-get_production_items :: proc(es:[]Entity, types:bit_set[ProductionType]) -> []int {
-	mats := make([dynamic]int)
-	for e, i in es {
-		if e.type == .Production && e.in_building == 0 && e.production.type in types {
-			append(&mats, i)
-		}
-	}
-	return mats[:]
-}
-
-
 /**************
  * Production *
  **************/
 
 ProductionType :: enum { Null, Bed, Door }
+
+Production :: struct {
+	type : ProductionType,
+}
 
 AttributeName :: enum {
 	SleepIn,
@@ -186,22 +130,24 @@ ProductionTemplate :: struct {
 
 production_template := [ProductionType]ProductionTemplate {
 		.Null = {},
-		.Bed = {
-				.B, is_wood, {.Carpenter}, {.SleepIn, .Placeable},
-		},
-		.Door = {
-				.D, is_stone, {.StoneMason}, {.Openable, .Placeable},
-		}
-}
-
-Production :: struct {
-	type : ProductionType,
+		.Bed = {.B, is_wood, {.Carpenter}, {.SleepIn, .Placeable},},
+		.Door = {.D, is_stone, {.StoneMason}, {.Openable, .Placeable},}
 }
 
 add_production_item :: proc(es:^[dynamic]Entity, type:ProductionType, pos:V3i) -> int {
 	i := add_entity(es, .Production, pos)
 	es[i].production = {type}
 	return i
+}
+
+get_production_items :: proc(es:[]Entity, types:bit_set[ProductionType]) -> []int {
+	mats := make([dynamic]int)
+	for e, i in es {
+		if e.type == .Production && e.in_building == 0 && e.production.type in types {
+			append(&mats, i)
+		}
+	}
+	return mats[:]
 }
 
 /************
@@ -219,6 +165,18 @@ Creature :: struct {
 	path: [dynamic]V3i,
 	current_order_idx: int,
 	action_ticker : f32,
+}
+
+add_creature :: proc(es:^[dynamic]Entity, type:CreatureType, pos:V3i, name:string) -> int {
+	c := Creature{
+		type = type,
+		name = name,
+		task = {},
+		action_ticker = 0.2
+	}
+	i := add_entity(es, .Creature, pos)
+	es[i].creature = c
+	return i
 }
 
 TaskType :: enum {
@@ -284,6 +242,16 @@ get_material_in_inventory :: proc(inv:[]Material, type:MaterialType) -> int {
     return count
 }
 
+get_construction_materials :: proc(es:[]Entity) -> []int {
+	mats := make([dynamic]int)
+	for e, i in es {
+		if e.type == .Material && e.in_inventory_of == 0 && e.in_building == 0 {
+			append(&mats, i)
+		}
+	}
+	return mats[:]
+}
+
 /************
  * Building *
  ************/
@@ -323,6 +291,33 @@ Building :: struct {
     type : BuildingType,
     status : BuildingStatus,
     deconstruction_percentage: f32,
+}
+
+building_construction_request :: proc(es:^[dynamic]Entity, type:BuildingType, pos:V3i) -> int {
+	building := Building{
+		type = type,
+		status = .PendingMaterialAssignment,
+		deconstruction_percentage = 1,
+	}
+	i := add_entity(es, .Building, pos)
+	es[i].building = building
+	es[i].dim = B_PROTOS[type].dims
+	return i
+}
+
+add_tree :: proc(es:^[dynamic]Entity, mat:MaterialType, pos:V3i, height:int) -> int {
+	i := add_entity(es, .Building, pos)
+	es[i].building = {.Tree, .Normal, 0}
+
+	for idx in 0..<height {
+		j := add_entity(es, .Material, pos+{0,0,idx})
+		es[j].material.type = mat
+		es[j].material.form = .Natural
+		es[j].in_building = i
+		append(&es[i].inventory, j)
+	}
+
+	return i
 }
 
 /**************
