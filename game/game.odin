@@ -698,6 +698,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					}
 				}
 			}
+			case .Stockpile: {}
 
 			}
 		}
@@ -926,6 +927,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					entity := entities[e]
 					str : string
 					switch entity.type {
+					case .Stockpile: {}
 					case .Null: {}
 					case .Creature: {
 						str = fmt.tprint(entity.creature.type, entity.creature.name)

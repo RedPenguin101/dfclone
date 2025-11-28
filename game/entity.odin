@@ -6,6 +6,7 @@ EntityType :: enum {
 	Building,
 	Material,
 	Production,
+	Stockpile,
 }
 
 Entity :: struct {
@@ -18,6 +19,7 @@ Entity :: struct {
 	material:Material,
 	creature:Creature,
 	production:Production,
+	stockpile:Stockpile,
 	inventory:[dynamic]int,
 }
 
@@ -159,4 +161,174 @@ get_production_items :: proc(es:[]Entity, types:bit_set[ProductionType]) -> []in
 		}
 	}
 	return mats[:]
+}
+
+
+/**************
+ * Production *
+ **************/
+
+ProductionType :: enum { Null, Bed, Door }
+
+AttributeName :: enum {
+	SleepIn,
+	SitAt,
+	Openable,
+	Placeable,
+}
+
+ProductionTemplate :: struct {
+	glyph:Glyph,
+	made_from: bit_set[MaterialType],
+	made_at:   bit_set[BuildingType],
+	attributes:bit_set[AttributeName]
+}
+
+production_template := [ProductionType]ProductionTemplate {
+		.Null = {},
+		.Bed = {
+				.B, is_wood, {.Carpenter}, {.SleepIn, .Placeable},
+		},
+		.Door = {
+				.D, is_stone, {.StoneMason}, {.Openable, .Placeable},
+		}
+}
+
+Production :: struct {
+	type : ProductionType,
+}
+
+add_production_item :: proc(es:^[dynamic]Entity, type:ProductionType, pos:V3i) -> int {
+	i := add_entity(es, .Production, pos)
+	es[i].production = {type}
+	return i
+}
+
+/************
+ * Creature *
+ ************/
+
+CreatureType :: enum {
+	Dwarf,
+}
+
+Creature :: struct {
+	type: CreatureType,
+	name: string,
+	task: Task,
+	path: [dynamic]V3i,
+	current_order_idx: int,
+	action_ticker : f32,
+}
+
+TaskType :: enum {
+	None,
+
+	MoveMaterialFromLocationToEntity,
+	MoveMaterialFromEntityToLocation,
+
+	ConstructBuilding,
+	DeconstructBuilding,
+	MineTile,
+
+	ProduceAtWorkshop,
+}
+
+// TODO: Maybe change over so building is always IDX1
+
+/*					Idx1			Idx2			Loc				ProdType
+MoveMatToEnt		Material		Building		N/A
+MovematFromEnt		Material		Building		Target
+Construct			Building		N/A				N/A
+Deconstruct			Building		N/A				N/A
+Mine				N/A				N/A				LocToMine
+Produce				Material		Building		N/A				Produce
+ */
+
+Task :: struct {
+	type:TaskType,
+	entity_idx_1: int,
+	entity_idx_2: int,
+	loc_1: V3i,
+	production_type: ProductionType,
+}
+
+/************
+ * Material *
+ ************/
+
+MaterialType :: enum { Nothing, Stone_Limestone, Stone_Magnetite, Wood_Oak }
+MaterialForm :: enum { Natural, }
+
+Material :: struct {
+    type:MaterialType,
+    form:MaterialForm,
+    quantity:int,
+    earmarked_for_use: bool,
+}
+
+// TODO: maybe better to do this with an attribute system
+is_wood := bit_set[MaterialType] {
+    .Wood_Oak,
+}
+
+is_stone := bit_set[MaterialType] {
+    .Stone_Limestone, .Stone_Magnetite
+}
+
+get_material_in_inventory :: proc(inv:[]Material, type:MaterialType) -> int {
+    count := 0
+    for m in inv {
+        if m.type == type do count += m.quantity
+    }
+    return count
+}
+
+/************
+ * Building *
+ ************/
+
+BuildingType :: enum { Null, Tree, StoneMason, Carpenter, PlacedProdItem }
+
+BuildingStatus :: enum { Null, PendingMaterialAssignment, PendingConstruction, Normal, PendingDeconstruction, }
+
+is_workshop := bit_set[BuildingType] {
+		.StoneMason, .Carpenter,
+}
+
+BuildingPrototype :: struct {
+    dims:V3i,
+	glyphs:[9]Glyph,
+}
+
+B_PROTOS := [BuildingType]BuildingPrototype {
+        .Null = {},
+        .Tree = {},
+	    .PlacedProdItem = {{1,1,1},{}},
+        .StoneMason = {
+			{3,3,1},
+			{.EQ, .CDOT, .HAT2 ,
+			 .EQ, .CDOT, .EQ,
+			 .EQ, .CDOT, .OMEGA,}
+		},
+        .Carpenter = {
+			{3,3,1},
+			{.EQ, .CDOT, .TILDE ,
+			 .EQ, .CDOT, .PIPE,
+			 .EQ, .CDOT, .BRACKET_L,}
+		},
+}
+
+Building :: struct {
+    type : BuildingType,
+    status : BuildingStatus,
+    deconstruction_percentage: f32,
+}
+
+/**************
+ * Stockpiles *
+ **************/
+
+Stockpile :: struct {
+	
 }
