@@ -131,7 +131,7 @@ setup_menus :: proc(m:^MenuState) {
 		btn : MenuElement
 
 		for buildable in ProductionType {
-			if !(.Placeable in production_template[buildable].attributes) do continue
+			if !(.Placeable in PRODUCTION_TEMPLATES[buildable].attributes) do continue
 			btn = MenuElement{
 				type = .Button,
 				rect = btn_start,

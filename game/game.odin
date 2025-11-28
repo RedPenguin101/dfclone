@@ -221,46 +221,18 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 
 		add_tree(entities, .Wood_Oak, {4,4,1}, 3)
 
-		t := add_entity(entities, .Material, {9, 4, 1})
-		entities[t].material = {
-			type = .Stone_Limestone,
-			form = .Natural,
-			quantity = 1,
-			earmarked_for_use = false
-		}
+		add_material(entities, .Stone_Limestone, {9,4,1})
+		add_material(entities, .Stone_Magnetite, {9,5,1})
+		add_material(entities, .Wood_Oak, {9,6,1})
+		add_material(entities, .Wood_Oak, {9,7,1})
+		add_production_item(entities, .Bed, {9, 8, 1})
 
-		t = add_entity(entities, .Material, {9, 5, 1})
-		entities[t].material = Material{
-			type = .Stone_Magnetite,
-			form = .Natural,
-			quantity = 1,
-			earmarked_for_use = false
-		}
-
-		t = add_entity(entities, .Material, {9, 6, 1})
-		entities[t].material = Material{
-			type = .Wood_Oak,
-			form = .Natural,
-			quantity = 1,
-			earmarked_for_use = false
-		}
-
-		t = add_entity(entities, .Material, {9, 7, 1})
-		entities[t].material = Material{
-			type = .Wood_Oak,
-			form = .Natural,
-			quantity = 1,
-			earmarked_for_use = false
-		}
-
-		t = add_entity(entities, .Building, {4,5,1})
+		t := add_entity(entities, .Building, {4,5,1})
 		entities[t].dim = {3,3,1}
 		entities[t].building = {
 			type = .Carpenter,
 			status = .Normal,
 		}
-
-		add_production_item(entities, .Bed, {9, 8, 1})
 
 		setup_menus(menus)
 		memory.initialized = true
@@ -393,8 +365,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					}
 					case .Produce: {
 						produce := ProductionType(order.target_idx)
-						workshops := production_template[produce].made_at
-						materials := production_template[produce].made_from
+						workshops := PRODUCTION_TEMPLATES[produce].made_at
+						materials := PRODUCTION_TEMPLATES[produce].made_from
 
 						found_workshop := false
 						found_material := false
@@ -406,7 +378,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 								target_workshop = i
 								// TODO: If the workshop already has a suitable material in inventory, immediately set task to ProduceAtWorkshop
 							} else if !found_material && e.type == .Material &&
-								e.material.type in materials &&
+								e.attributes & materials != {} &&
 								e.in_inventory_of == 0 && e.in_building == 0 {
 									found_material = true
 									target_material = i
@@ -651,7 +623,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
 						// placed item is the first (and only) element in the inventory
 						prod_item := e.production.type
-						glyph := production_template[prod_item].glyph
+						glyph := PRODUCTION_TEMPLATES[prod_item].glyph
 						plot_tile(screen_tile, white, black, glyph)
 					}
 				} else if e.building.type in is_workshop {
@@ -683,7 +655,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				if e.in_inventory_of == 0 && e.in_building == 0 {
 					visible, screen_tile := camera_xform(cam^, e.pos)
 					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
-						glyph := production_template[e.production.type].glyph
+						glyph := PRODUCTION_TEMPLATES[e.production.type].glyph
 						color := tree_brown
 						plot_tile(screen_tile, color, black, glyph)
 					}
@@ -693,8 +665,8 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				if e.in_inventory_of == 0 && e.in_building == 0 {
 					visible, screen_tile := camera_xform(cam^, e.pos)
 					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
-						color := tree_brown if e.material.type in is_wood else stone_grey
-						plot_tile(screen_tile, color, black, .M)
+						glyph := MATERIAL_TEMPLATES[e.material.type].glyph
+						plot_tile(screen_tile, white, black, glyph)
 					}
 				}
 			}
@@ -771,7 +743,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 								i := -1
 								c := -1
 								for btype in ProductionType {
-									if .Placeable in production_template[btype].attributes do i+=1
+									if .Placeable in PRODUCTION_TEMPLATES[btype].attributes do i+=1
 									c += 1
 									if i == el_idx do break
 								}

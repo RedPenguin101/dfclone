@@ -9,12 +9,18 @@ EntityType :: enum {
 	Stockpile,
 }
 
+Attribute :: enum {
+	SleepIn, SitAt, Openable, Placeable,
+	OfStone, OfWood,
+}
+
 Entity :: struct {
 	type : EntityType,
 	in_inventory_of:int,
 	in_building:int,
 	pos : V3i, // NOTE: south west lower corner for multi-tile entities
 	dim : V3i,
+	attributes : bit_set[Attribute],
 	building:Building,
 	material:Material,
 	creature:Creature,
@@ -114,29 +120,23 @@ Production :: struct {
 	type : ProductionType,
 }
 
-AttributeName :: enum {
-	SleepIn,
-	SitAt,
-	Openable,
-	Placeable,
-}
-
 ProductionTemplate :: struct {
 	glyph:Glyph,
-	made_from: bit_set[MaterialType],
+	made_from: bit_set[Attribute],
 	made_at:   bit_set[BuildingType],
-	attributes:bit_set[AttributeName]
+	attributes:bit_set[Attribute]
 }
 
-production_template := [ProductionType]ProductionTemplate {
+PRODUCTION_TEMPLATES := [ProductionType]ProductionTemplate {
 		.Null = {},
-		.Bed = {.B, is_wood, {.Carpenter}, {.SleepIn, .Placeable},},
-		.Door = {.D, is_stone, {.StoneMason}, {.Openable, .Placeable},}
+		.Bed = {.B, {.OfWood}, {.Carpenter}, {.SleepIn, .Placeable},},
+		.Door = {.D, {.OfStone}, {.StoneMason}, {.Openable, .Placeable},}
 }
 
 add_production_item :: proc(es:^[dynamic]Entity, type:ProductionType, pos:V3i) -> int {
 	i := add_entity(es, .Production, pos)
 	es[i].production = {type}
+	es[i].attributes = PRODUCTION_TEMPLATES[type].attributes
 	return i
 }
 
@@ -225,13 +225,27 @@ Material :: struct {
     earmarked_for_use: bool,
 }
 
-// TODO: maybe better to do this with an attribute system
-is_wood := bit_set[MaterialType] {
-    .Wood_Oak,
+MaterialTemplate :: struct {
+	glyph:Glyph,
+	base_attributes:bit_set[Attribute]
 }
 
-is_stone := bit_set[MaterialType] {
-    .Stone_Limestone, .Stone_Magnetite
+MATERIAL_TEMPLATES := [MaterialType]MaterialTemplate{
+		.Nothing = {},
+		.Stone_Limestone = {.S, {.OfStone}},
+		.Stone_Magnetite = {.S, {.OfStone}},
+		.Wood_Oak = {.W, {.OfWood}},
+}
+
+add_material :: proc(es:^[dynamic]Entity, type:MaterialType, pos:V3i) -> int {
+	i := add_entity(es, .Material, pos)
+	es[i].attributes = MATERIAL_TEMPLATES[type].base_attributes
+	es[i].material = {
+		type = type,
+		form = .Natural,
+		quantity = 1,
+	}
+	return i
 }
 
 get_material_in_inventory :: proc(inv:[]Material, type:MaterialType) -> int {
