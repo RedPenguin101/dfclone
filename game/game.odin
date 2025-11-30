@@ -456,6 +456,16 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							}
 							case .HaulToStockpile:
 							{
+								thing_to_haul_idx := order.target_idx
+								assert(thing_to_haul_idx > 0)
+								// TODO: Find stockpile to haul to
+								stockpile_idx := find_stockpile_for_item(entities[:])
+								assert(stockpile_idx > 0)
+								task : Task
+								task.type = .MoveEntityToStockpile
+								task.entity_idx_1 = thing_to_haul_idx
+								task.entity_idx_2 = stockpile_idx
+								e.creature.task = task
 							}
 						}
 					}
@@ -491,6 +501,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							e.pos = pop(&e.creature.path)
 							e.creature.action_ticker -= TEMP_MOVE_COST
 						} else {
+							// Produce object
 							material := entities[m_idx]
 							assert(material.in_inventory_of == b_idx)
 							e.creature.action_ticker -= TEMP_PRODUCE_COST
@@ -511,6 +522,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 								// TODO: Fix leak
 								state.im_temp_entity_buffer = populate_order_menu(menus, order_queue)
 							}
+							add_order(order_queue, .HaulToStockpile, idx=new_i)
 						}
 					}
 					case .DeconstructBuilding:{
@@ -617,7 +629,58 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 						}
 					}
 					case .MoveEntityToStockpile: {
-						DBG("Move To Stockpile", e.creature.task)
+						// TODO: don't need all this prelimnary if we're just walking to the target i.e. have a path
+						obj_idx := e.creature.task.entity_idx_1
+						stockpile_idx := e.creature.task.entity_idx_2
+
+						obj := &entities[obj_idx]
+						obj_holder := obj.in_inventory_of
+
+						stockpile := &entities[stockpile_idx]
+
+						target_pos : V3i
+						picking_up := false
+						from_another_inventory := false
+						if obj_holder == my_idx {
+							target_pos = find_unoccupied_stockpile_position(entities[:], stockpile^)
+							assert(target_pos != {-1,-1,-1})
+						} else if obj_holder > 0 {
+							picking_up = true
+							from_another_inventory = true
+							target_pos = entities[obj_holder].pos
+						} else {
+							// object is on the floor
+							picking_up = true
+							target_pos = obj.pos
+						}
+
+						if !are_adjacent(e.pos, target_pos)
+ 						{
+							if len(e.creature.path) < 1 {
+								reachable := find_path(mmap, e.pos, target_pos, &e.creature.path)
+								assert(reachable)
+							}
+ 							e.pos = pop(&e.creature.path)
+ 							e.creature.action_ticker -= TEMP_MOVE_COST
+						} else {
+							if picking_up {
+								if from_another_inventory {
+									remove_from_inventory(&entities[obj_holder].inventory, obj_idx)
+								}
+ 								obj.in_inventory_of = my_idx
+ 								append(&e.inventory, obj_idx)
+							} else {
+								remove_from_inventory(&entities[my_idx].inventory, obj_idx)
+								append(&stockpile.inventory, obj_idx)
+								obj.in_inventory_of = 0
+								obj.in_stockpile = stockpile_idx
+								obj.pos = target_pos
+								e.creature.task = {}
+								complete_order(order_queue, e.creature.current_order_idx)
+								e.creature.current_order_idx = 0
+								DBG("Finished haul to stockpile task")
+							}
+						}
 					}
 				}
 			}

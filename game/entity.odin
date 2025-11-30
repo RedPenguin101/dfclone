@@ -18,6 +18,7 @@ Entity :: struct {
 	type : EntityType,
 	in_inventory_of:int,
 	in_building:int,
+	in_stockpile:int,
 	pos : V3i, // NOTE: south west lower corner for multi-tile entities
 	dim : V3i,
 	attributes : bit_set[Attribute],
@@ -343,4 +344,38 @@ add_stockpile :: proc(es:^[dynamic]Entity, pos:V3i, dims:V3i) -> int {
 	i := add_entity(es, .Stockpile, pos)
 	es[i].dim = dims
 	return i
+}
+
+stockpile_capacity :: proc(e:Entity) -> int {
+	assert(e.type == .Stockpile)
+	size := e.dim.x * e.dim.y
+	items := len(e.inventory)
+	return size-items
+}
+
+find_unoccupied_stockpile_position :: proc(es:[]Entity, stockpile:Entity) -> V3i {
+	loc_set := make(map[V3i]bool, context.temp_allocator)
+	for idx in stockpile.inventory {
+		loc_set[es[idx].pos] = true
+	}
+	for x in 0..<stockpile.dim.x {
+		for y in 0..<stockpile.dim.y {
+			pos := stockpile.pos + {x, y, 0}
+			if !(pos in loc_set) {
+				return pos
+			}
+		}
+	}
+	return {-1,-1,-1}
+}
+
+find_stockpile_for_item :: proc(es:[]Entity) -> int {
+	// TODO: Item filtering, full detection
+	for e, i in es {
+		if e.type == .Stockpile
+		{
+			return i
+		}
+	}
+	return 0
 }
