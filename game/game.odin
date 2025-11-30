@@ -314,6 +314,7 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
  	********************/
 
 	has_creature := make([]bool, COLS*ROWS, context.temp_allocator)
+	has_stockpile_item := make([]bool, COLS*ROWS, context.temp_allocator)
 
 	for &e, my_idx in entities
 	{
@@ -744,6 +745,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							color := tree_brown
 							plot_tile(screen_tile, color, black, glyph)
 						}
+						if visible && e.in_stockpile != 0 {
+							has_stockpile_item[screen_tile.x + (screen_tile.y * COLS)] = true
+						}
 					}
 				}
 				case .Material: {
@@ -753,13 +757,18 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 							glyph := MATERIAL_TEMPLATES[e.material.type].glyph
 							plot_tile(screen_tile, white, black, glyph)
 						}
+ 						if visible && e.in_stockpile != 0 {
+							has_stockpile_item[screen_tile.x + (screen_tile.y * COLS)] = true
+						}
 					}
 				}
 				case .Stockpile: {
 					for x in 0..<e.dim.x {
 						for y in 0..<e.dim.y {
 							visible, screen_tile := camera_xform(cam^, e.pos+{x,y,0})
-							if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
+							screen_idx := screen_tile.x + (screen_tile.y * COLS)
+							if visible && !has_creature[screen_idx] && !has_stockpile_item[screen_idx]
+							{
 								plot_tile(screen_tile, white, black, .EQ)
 							}
 						}
