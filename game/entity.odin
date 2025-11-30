@@ -189,6 +189,7 @@ TaskType :: enum {
 	MineTile,
 
 	ProduceAtWorkshop,
+	MoveEntityToStockpile,
 }
 
 // TODO: Maybe change over so building is always IDX1
@@ -200,6 +201,7 @@ Construct			Building		N/A				N/A
 Deconstruct			Building		N/A				N/A
 Mine				N/A				N/A				LocToMine
 Produce				Material		Building		N/A				Produce
+Stockpile           Object          Stockpile
  */
 
 Task :: struct {

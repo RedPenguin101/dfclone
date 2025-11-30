@@ -64,7 +64,8 @@ dot :: proc(v,w:V2i) -> int {
 	return v.x*w.x + v.y*w.y
 }
 
-basis_xform_point :: proc(b:Basis, v:V2i) -> V2i {
+basis_xform_point :: proc(b:Basis, v:V2i) -> V2i
+{
     v_b := -b.origin + V2i{dot(v, b.x), dot(v, b.y)}
     return v_b
 }
@@ -138,7 +139,8 @@ GameMemory :: struct {
  ********************/
 
 write_string_to_screen :: proc(loc:V2i, str:string, text_col, bg_col:Color) {
-	for x in 0..<len(str) {
+	for x in 0..<len(str)
+ 	{
 		plot_loc := loc+{x, 0}
 		if !in_rect(plot_loc, {0,0,COLS, ROWS}) do continue
 		rune := str[x]
@@ -191,9 +193,9 @@ game_state_destroy :: proc(memory:^GameMemory) {
 @(export)
 game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool {
 
-/**************
- * LOOP LOCAL *
- **************/
+	/**************
+ 	* LOOP LOCAL *
+ 	**************/
 
 	state := &memory.game_state
 	entities := &state.e
@@ -202,11 +204,12 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 	mmap := &state.m
 	cam := &state.cam
 
-/*****************
- * SEC: MEM INIT *
- *****************/
+	/*****************
+ 	* SEC: MEM INIT *
+ 	*****************/
 
-	if !memory.initialized {
+	if !memory.initialized
+	{
 		// NULL entries
 		add_entity(entities, .Null, {0,0,0})
 		add_order(order_queue, .Null, {})
@@ -248,9 +251,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		}
 	}
 
-/***********************
- * SEC: INPUT HANDLING *
- ***********************/
+	/***********************
+ 	* SEC: INPUT HANDLING *
+ 	***********************/
 
 	state.hovered_tile = map_xform(cam^, input.mouse.tile)
 	lmb := pressed(input.mouse.lmb)
@@ -265,9 +268,9 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		if pressed(input.keyboard[.RIGHT]) do cam.focus.x += 1
 	}
 
-/*******************
- * SEC: DRAW MAP *
- *******************/
+	/*******************
+ 	* SEC: DRAW MAP *
+ 	*******************/
 
 	{
 		z_level := cam.focus.z
@@ -277,47 +280,59 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 				tile := get_map_tile(mmap, {x,y,z_level})
 				fg,bg:Color
 				glyph:Glyph
-				if tile.order_idx > 0 {
+				if tile.order_idx > 0
+				{
 					glyph = .SIG
 					fg = yellow
 					bg = grey
-				} else if tile.content.shape == .Wall {
-					if tile.exposed {
+				}
+				else if tile.content.shape == .Wall
+				{
+					if tile.exposed
+					{
 						bg = stone_grey
 						fg = Color{136.0/255,136.0/255,61.0/255,1}
 						glyph = .PERCENT
 					}
-				} else {
+				}
+				else
+ 				{
 					fg = green
 					glyph = .D_QUOTE
 				}
 				visible, screen_tile := camera_xform(cam^, {x,y,z_level})
-				if visible {
+				if visible
+				{
 					plot_tile(screen_tile, fg, bg, glyph)
 				}
 			}
 		}
 	}
 
-/********************
- * SEC: Entity Loop *
- ********************/
+	/********************
+ 	* SEC: Entity Loop *
+ 	********************/
 
 	has_creature := make([]bool, COLS*ROWS, context.temp_allocator)
 
-	for &e, my_idx in entities {
+	for &e, my_idx in entities
+	{
 		type := e.type
-		if type == .Creature {
+		if type == .Creature
+		{
 			e.creature.action_ticker += time_delta
 			e.creature.action_ticker = min(e.creature.action_ticker, time_delta)
 			MAX_ITS :: 10
 			its := 0
-			for e.creature.action_ticker > 0 && its < MAX_ITS {
+			for e.creature.action_ticker > 0 && its < MAX_ITS
+			{
 				its += 1
 				/* SEC: Creature Pickup Order */
-				if e.creature.current_order_idx == 0 {
+				if e.creature.current_order_idx == 0
+				{
 					i, o := get_unassigned_order(order_queue)
-					if i > 0 {
+					if i > 0
+					{
 						e.creature.current_order_idx = i
 						INFO("Picked up order", o.type, o.pos, o.target_idx, o.target_count)
 						o.status = .Assigned
@@ -325,279 +340,285 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 					}
 				}
 
-				/* SEC: Creature Decide new task */
-				switch e.creature.task.type {
-				case .None: {
-					order := &order_queue.orders[e.creature.current_order_idx]
-					switch order.type {
-					case .Null: {
-						// NOTE: Nothing to do, quit out of loop
-						e.creature.action_ticker = 0
-						continue
-					}
-					case .Mine: {
-						reachable := find_path(mmap, e.pos, order.pos, &e.creature.path)
-						if reachable
-						{
-							e.creature.task.type = .MineTile
-							e.creature.task.loc_1 = order.pos
-						}
-						else
-						{
-							INFO("Can't reach mining location, looking for another job")
-							e.creature.current_order_idx = 0
-							order.status = .Suspended
-						}
-					}
-					case .CutTree, .Deconstruct: {
-						building := entities[order.target_idx]
-						reachable := find_path(mmap, e.pos, building.pos, &e.creature.path)
-						if reachable
-						{
-							e.creature.task.type = .DeconstructBuilding
-							e.creature.task.entity_idx_1 = order.target_idx
-						}
-						else
-						{
-							e.creature.current_order_idx = 0
-							order.status = .Suspended
-							INFO("Can't reach deconstruction location, looking for another job")
-						}
-					}
-					case .Produce: {
-						produce := ProductionType(order.target_idx)
-						workshops := PRODUCTION_TEMPLATES[produce].made_at
-						materials := PRODUCTION_TEMPLATES[produce].made_from
-
-						found_workshop := false
-						found_material := false
-						target_workshop : int
-						target_material : int
-						for e, i in entities {
-							if !found_workshop && e.type == .Building && e.building.type in workshops {
-								found_workshop = true
-								target_workshop = i
-								// TODO: If the workshop already has a suitable material in inventory, immediately set task to ProduceAtWorkshop
-							} else if !found_material && e.type == .Material &&
-								e.attributes & materials != {} &&
-								e.in_inventory_of == 0 && e.in_building == 0 {
-									found_material = true
-									target_material = i
-								}
-							if found_material && found_workshop do break
-						}
-						if found_workshop && found_material {
-							get_from := entities[target_material].pos
-							reachable := find_path(mmap, e.pos, get_from, &e.creature.path)
-							e.creature.task = {
-								type = .MoveMaterialFromLocationToEntity,
-								entity_idx_1 = target_material,
-								entity_idx_2 = target_workshop,
-								production_type = produce,
+				switch e.creature.task.type
+				{
+					case .None: {
+						/* SEC: Decide new task */
+						order := &order_queue.orders[e.creature.current_order_idx]
+						switch order.type {
+							case .Null: {
+								// NOTE: Nothing to do, quit out of loop
+								e.creature.action_ticker = 0
+								continue
 							}
-						} else {
-							e.creature.current_order_idx = 0
-							order.status = .Suspended
-							order.assigned_creature_idx = 0
-							INFO("Can't find workshop/material needed to produce object, looking for another job")
-						}
-					}
-					case .Construct: {
-						b_idx := order.target_idx
-						b := &entities[b_idx]
-						switch b.building.status {
-						case .Null, .PendingMaterialAssignment: panic("unreachable")
-						case .PendingConstruction: {
-							// TODO: Extend to buildings with multiple objects in construction
-							mat_idx := b.inventory[0]
-							mat := entities[mat_idx]
-							if mat.in_inventory_of == b_idx {
-								e.creature.task.type = .ConstructBuilding
-								e.creature.task.entity_idx_1 = b_idx
-							} else {
-								reachable := find_path(mmap, e.pos, mat.pos, &e.creature.path)
+							case .Mine: {
+								reachable := find_path(mmap, e.pos, order.pos, &e.creature.path)
 								if reachable
 								{
-									e.creature.task.type = .MoveMaterialFromLocationToEntity
-									e.creature.task.entity_idx_1 = mat_idx
-									e.creature.task.entity_idx_2 = b_idx
+									e.creature.task.type = .MineTile
+									e.creature.task.loc_1 = order.pos
+								}
+								else
+								{
+									INFO("Can't reach mining location, looking for another job")
+									e.creature.current_order_idx = 0
+									order.status = .Suspended
+								}
+							}
+							case .CutTree, .Deconstruct: {
+								building := entities[order.target_idx]
+								reachable := find_path(mmap, e.pos, building.pos, &e.creature.path)
+								if reachable
+								{
+									e.creature.task.type = .DeconstructBuilding
+									e.creature.task.entity_idx_1 = order.target_idx
 								}
 								else
 								{
 									e.creature.current_order_idx = 0
 									order.status = .Suspended
-									INFO("Can't reach material location, looking for another order")
+									INFO("Can't reach deconstruction location, looking for another job")
+								}
+							}
+							case .Produce: {
+								produce := ProductionType(order.target_idx)
+								workshops := PRODUCTION_TEMPLATES[produce].made_at
+								materials := PRODUCTION_TEMPLATES[produce].made_from
+
+								found_workshop := false
+								found_material := false
+								target_workshop : int
+								target_material : int
+								for e, i in entities {
+									if !found_workshop && e.type == .Building && e.building.type in workshops {
+										found_workshop = true
+										target_workshop = i
+										// TODO: If the workshop already has a suitable material in inventory, immediately set task to ProduceAtWorkshop
+									} else if !found_material && e.type == .Material &&
+									e.attributes & materials != {} &&
+									e.in_inventory_of == 0 && e.in_building == 0 {
+										found_material = true
+										target_material = i
+									}
+									if found_material && found_workshop do break
+								}
+								if found_workshop && found_material {
+									get_from := entities[target_material].pos
+									reachable := find_path(mmap, e.pos, get_from, &e.creature.path)
+									e.creature.task = {
+										type = .MoveMaterialFromLocationToEntity,
+										entity_idx_1 = target_material,
+										entity_idx_2 = target_workshop,
+										production_type = produce,
+									}
+								} else {
+									e.creature.current_order_idx = 0
+									order.status = .Suspended
+									order.assigned_creature_idx = 0
+									INFO("Can't find workshop/material needed to produce object, looking for another job")
+								}
+							}
+							case .Construct: {
+								b_idx := order.target_idx
+								b := &entities[b_idx]
+								switch b.building.status {
+									case .Null, .PendingMaterialAssignment: panic("unreachable")
+									case .PendingConstruction: {
+										// TODO: Extend to buildings with multiple objects in construction
+										mat_idx := b.inventory[0]
+										mat := entities[mat_idx]
+										if mat.in_inventory_of == b_idx {
+											e.creature.task.type = .ConstructBuilding
+											e.creature.task.entity_idx_1 = b_idx
+										} else {
+											reachable := find_path(mmap, e.pos, mat.pos, &e.creature.path)
+											if reachable
+											{
+												e.creature.task.type = .MoveMaterialFromLocationToEntity
+												e.creature.task.entity_idx_1 = mat_idx
+												e.creature.task.entity_idx_2 = b_idx
+											}
+											else
+											{
+												e.creature.current_order_idx = 0
+												order.status = .Suspended
+												INFO("Can't reach material location, looking for another order")
+											}
+										}
+									}
+									case .Normal: {
+										// TODO: if building status is Normal, finish the order
+									}
+									case .PendingDeconstruction: {
+										// TODO: If building has been changed to pending decontruction, finish the task and complete the order
+									}
+								}
+							}
+							case .HaulToStockpile:
+							{
+							}
+						}
+					}
+					/* SEC: Creature Execute Task */
+					case .MineTile: {
+						target_pos := e.creature.task.loc_1
+						if !are_adjacent(e.pos, target_pos) {
+							e.pos = pop(&e.creature.path)
+							e.creature.action_ticker -= TEMP_MOVE_COST
+						} else {
+							mat := mine_tile(mmap, target_pos)
+							e.creature.action_ticker -= TEMP_MINE_COST
+							complete_order(order_queue, e.creature.current_order_idx)
+							e.creature.current_order_idx = 0
+							tile := get_map_tile(mmap, target_pos)
+							tile.order_idx = 0
+							if tile.content.drops {
+								i := add_entity(entities, .Material, target_pos)
+								entities[i].material = mat
+							}
+							e.creature.task.type = .None
+							assert(e.creature.task.type == dbg_dwarf.creature.task.type)
+							make_suspended_mine_orders_available(order_queue)
+						}
+					}
+					case .ProduceAtWorkshop: {
+						m_idx := e.creature.task.entity_idx_1
+						b_idx := e.creature.task.entity_idx_2
+						produce := e.creature.task.production_type
+						building := entities[b_idx]
+						if !are_adjacent(e.pos, building.pos) {
+							if len(e.creature.path) == 0 do find_path(mmap, e.pos, building.pos, &e.creature.path)
+							e.pos = pop(&e.creature.path)
+							e.creature.action_ticker -= TEMP_MOVE_COST
+						} else {
+							material := entities[m_idx]
+							assert(material.in_inventory_of == b_idx)
+							e.creature.action_ticker -= TEMP_PRODUCE_COST
+							remove_entity(entities, m_idx)
+							new_i := add_entity(entities, .Production, building.pos)
+							entities[new_i].in_inventory_of = b_idx
+							entities[new_i].production = {
+								produce,
+							}
+							append(&building.inventory, new_i)
+							e.creature.task.type = .None
+							order := &order_queue.orders[e.creature.current_order_idx]
+							order.target_count -= 1
+							if order.target_count == 0 {
+								complete_order(order_queue, e.creature.current_order_idx)
+							}
+							if menus.menus[.WorkOrderMenu].visible {
+								// TODO: Fix leak
+								state.im_temp_entity_buffer = populate_order_menu(menus, order_queue)
+							}
+						}
+					}
+					case .DeconstructBuilding:{
+						b_idx := e.creature.task.entity_idx_1
+						building := &entities[b_idx]
+						target_pos := building.pos
+						if !are_adjacent(e.pos, target_pos) {
+							e.pos = pop(&e.creature.path)
+							e.creature.action_ticker -= TEMP_MOVE_COST
+						} else {
+							building.building.deconstruction_percentage += 0.2
+							e.creature.action_ticker -= TEMP_BUILD_COST
+							if building.building.deconstruction_percentage > 1 {
+								for material_index in building.inventory {
+									entities[material_index].in_inventory_of = 0
+									entities[material_index].in_building = 0
+									entities[material_index].pos = building.pos
+								}
+								remove_entity(entities, b_idx)
+
+								complete_order(order_queue, e.creature.current_order_idx)
+								e.creature.current_order_idx = 0
+								get_map_tile(mmap, building.pos).order_idx = 0
+								e.creature.task = {}
+							}
+						}
+					}
+					case .MoveMaterialFromEntityToLocation: panic("unimplemented")
+
+					case .ConstructBuilding: {
+						b_idx := e.creature.task.entity_idx_1
+						building := &entities[b_idx]
+						target_pos := building.pos
+						if !are_adjacent(e.pos, target_pos) {
+							e.pos = pop(&e.creature.path)
+							e.creature.action_ticker -= TEMP_MOVE_COST
+						} else {
+							building.building.deconstruction_percentage -= 0.2
+							e.creature.action_ticker -= TEMP_BUILD_COST
+							if building.building.deconstruction_percentage < 0 {
+								building.building.deconstruction_percentage = 0
+								building.building.status = .Normal
+								for m_idx in building.inventory {
+									entities[m_idx].in_building = b_idx
+								}
+
+								complete_order(order_queue, e.creature.current_order_idx)
+								e.creature.current_order_idx = 0
+								get_map_tile(mmap, building.pos).order_idx = 0
+								e.creature.task = {}
+							}
+						}
+					}
+					case .MoveMaterialFromLocationToEntity: {
+						mat_idx := e.creature.task.entity_idx_1
+						ety_idx := e.creature.task.entity_idx_2
+						mat := &entities[mat_idx]
+						ety := &entities[ety_idx]
+						target_pos : V3i
+						picking_up := false
+						if mat.in_inventory_of == my_idx {
+							target_pos = ety.pos
+						} else if mat.in_inventory_of == 0 {
+							picking_up = true
+							target_pos = mat.pos
+						} else do panic("unreachable")
+
+						if !are_adjacent(e.pos, target_pos) {
+							e.pos = pop(&e.creature.path)
+							e.creature.action_ticker -= TEMP_MOVE_COST
+						} else {
+							if picking_up {
+								reachable := find_path(mmap, e.pos, ety.pos, &e.creature.path)
+								if reachable
+								{
+									e.creature.action_ticker -= TEMP_MOVE_COST
+									append(&e.inventory, mat_idx)
+									mat.in_inventory_of = my_idx
+								}
+								else
+								{
+									order_queue.orders[e.creature.current_order_idx].status = .Suspended
+									e.creature.current_order_idx = 0
+									INFO("Can't reach construction location, looking for another job")
+									e.creature.task.type = .None
+								}
+							} else {
+								e.creature.action_ticker -= TEMP_MOVE_COST
+								remove_from_inventory(&e.inventory, mat_idx)
+								mat.in_inventory_of = ety_idx
+								append(&ety.inventory, mat_idx)
+
+								order := order_queue.orders[e.creature.current_order_idx]
+								if order.type == .Produce
+								{  // Finished hauling preparatory to production, start production
+									e.creature.task.type = .ProduceAtWorkshop
+								} else
+								{
+									// TODO: If the order type is construct, check if the building has
+									// the required materials and move to construction
+									e.creature.task.type = .None
 								}
 							}
 						}
-						case .Normal: {
-							// TODO: if building status is Normal, finish the order
-						}
-						case .PendingDeconstruction: {
-							// TODO: If building has been changed to pending decontruction, finish the task and complete the order
-						}
-						}
 					}
+					case .MoveEntityToStockpile: {
+						DBG("Move To Stockpile", e.creature.task)
 					}
-				}
-					/* SEC: Creature Execute Task */
-				case .MineTile: {
-					target_pos := e.creature.task.loc_1
-					if !are_adjacent(e.pos, target_pos) {
-						e.pos = pop(&e.creature.path)
-						e.creature.action_ticker -= TEMP_MOVE_COST
-					} else {
-						mat := mine_tile(mmap, target_pos)
-						e.creature.action_ticker -= TEMP_MINE_COST
-						complete_order(order_queue, e.creature.current_order_idx)
-						e.creature.current_order_idx = 0
-						tile := get_map_tile(mmap, target_pos)
-						tile.order_idx = 0
-						if tile.content.drops {
-							i := add_entity(entities, .Material, target_pos)
-							entities[i].material = mat
-						}
-						e.creature.task.type = .None
-						assert(e.creature.task.type == dbg_dwarf.creature.task.type)
-						make_suspended_mine_orders_available(order_queue)
-					}
-				}
-				case .ProduceAtWorkshop: {
-					m_idx := e.creature.task.entity_idx_1
-					b_idx := e.creature.task.entity_idx_2
-					produce := e.creature.task.production_type
-					building := entities[b_idx]
-					if !are_adjacent(e.pos, building.pos) {
-						if len(e.creature.path) == 0 do find_path(mmap, e.pos, building.pos, &e.creature.path)
-						e.pos = pop(&e.creature.path)
-						e.creature.action_ticker -= TEMP_MOVE_COST
-					} else {
-						material := entities[m_idx]
-						assert(material.in_inventory_of == b_idx)
-						e.creature.action_ticker -= TEMP_PRODUCE_COST
-						remove_entity(entities, m_idx)
-						new_i := add_entity(entities, .Production, building.pos)
-						entities[new_i].in_inventory_of = b_idx
-						entities[new_i].production = {
-							produce,
-						}
-						append(&building.inventory, new_i)
-						e.creature.task.type = .None
-						order := &order_queue.orders[e.creature.current_order_idx]
-						order.target_count -= 1
-						if order.target_count == 0 {
-							complete_order(order_queue, e.creature.current_order_idx)
-						}
-						if menus.menus[.WorkOrderMenu].visible {
-							// TODO: Fix leak
-							state.im_temp_entity_buffer = populate_order_menu(menus, order_queue)
-						}
-					}
-				}
-				case .DeconstructBuilding:{
-					b_idx := e.creature.task.entity_idx_1
-					building := &entities[b_idx]
-					target_pos := building.pos
-					if !are_adjacent(e.pos, target_pos) {
-						e.pos = pop(&e.creature.path)
-						e.creature.action_ticker -= TEMP_MOVE_COST
-					} else {
-						building.building.deconstruction_percentage += 0.2
-						e.creature.action_ticker -= TEMP_BUILD_COST
-						if building.building.deconstruction_percentage > 1 {
-							for material_index in building.inventory {
-								entities[material_index].in_inventory_of = 0
-								entities[material_index].in_building = 0
-								entities[material_index].pos = building.pos
-							}
-							remove_entity(entities, b_idx)
-
-							complete_order(order_queue, e.creature.current_order_idx)
-							e.creature.current_order_idx = 0
-							get_map_tile(mmap, building.pos).order_idx = 0
-							e.creature.task = {}
-						}
-					}
-				}
-				case .MoveMaterialFromEntityToLocation: panic("unimplemented")
-
-				case .ConstructBuilding: {
-					b_idx := e.creature.task.entity_idx_1
-					building := &entities[b_idx]
-					target_pos := building.pos
-					if !are_adjacent(e.pos, target_pos) {
-						e.pos = pop(&e.creature.path)
-						e.creature.action_ticker -= TEMP_MOVE_COST
-					} else {
-						building.building.deconstruction_percentage -= 0.2
-						e.creature.action_ticker -= TEMP_BUILD_COST
-						if building.building.deconstruction_percentage < 0 {
-							building.building.deconstruction_percentage = 0
-							building.building.status = .Normal
-							for m_idx in building.inventory {
-								entities[m_idx].in_building = b_idx
-							}
-
-							complete_order(order_queue, e.creature.current_order_idx)
-							e.creature.current_order_idx = 0
-							get_map_tile(mmap, building.pos).order_idx = 0
-							e.creature.task = {}
-						}
-					}
-
-				}
-				case .MoveMaterialFromLocationToEntity: {
-					mat_idx := e.creature.task.entity_idx_1
-					ety_idx := e.creature.task.entity_idx_2
-					mat := &entities[mat_idx]
-					ety := &entities[ety_idx]
-					target_pos : V3i
-					picking_up := false
-					if mat.in_inventory_of == my_idx {
-						target_pos = ety.pos
-					} else if mat.in_inventory_of == 0 {
-						picking_up = true
-						target_pos = mat.pos
-					} else do panic("unreachable")
-
-					if !are_adjacent(e.pos, target_pos) {
-						e.pos = pop(&e.creature.path)
-						e.creature.action_ticker -= TEMP_MOVE_COST
-					} else {
-						if picking_up {
-							reachable := find_path(mmap, e.pos, ety.pos, &e.creature.path)
-							if reachable
-							{
-								e.creature.action_ticker -= TEMP_MOVE_COST
-								append(&e.inventory, mat_idx)
-								mat.in_inventory_of = my_idx
-							}
-							else
-							{
-								order_queue.orders[e.creature.current_order_idx].status = .Suspended
-								e.creature.current_order_idx = 0
-								INFO("Can't reach construction location, looking for another job")
-								e.creature.task.type = .None
-							}
-						} else {
-							e.creature.action_ticker -= TEMP_MOVE_COST
-							remove_from_inventory(&e.inventory, mat_idx)
-							mat.in_inventory_of = ety_idx
-							append(&ety.inventory, mat_idx)
-
-							order := order_queue.orders[e.creature.current_order_idx]
-							if order.type == .Produce
-							{  // Finished hauling preparatory to production, start production
-								e.creature.task.type = .ProduceAtWorkshop
-							} else
-							{
-								// TODO: If the order type is construct, check if the building has
-								// the required materials and move to construction
-								e.creature.task.type = .None
-							}
-						}
-					}
-				}
 				}
 			}
 		}
@@ -605,90 +626,90 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		/* SEC: Entity Render */
 		if e.pos.z == cam.focus.z {
 			switch e.type {
-			case .Null: {}
-			case .Creature: {
-				visible, screen_tile := camera_xform(cam^, e.pos)
-				if visible {
-					plot_tile(screen_tile, white, black, .AT)
-					has_creature[screen_tile.x + (screen_tile.y * COLS)] = true
+				case .Null: {}
+				case .Creature: {
+					visible, screen_tile := camera_xform(cam^, e.pos)
+					if visible {
+						plot_tile(screen_tile, white, black, .AT)
+						has_creature[screen_tile.x + (screen_tile.y * COLS)] = true
+					}
 				}
-			}
-			case .Building: {
-				if e.building.type == .Tree {
-					visible, screen_tile := camera_xform(cam^, e.pos)
-					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
-						plot_tile(screen_tile, white, black, .O)
-					}
-				} else if e.building.type == .PlacedProdItem {
-					visible, screen_tile := camera_xform(cam^, e.pos)
-					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
-						// placed item is the first (and only) element in the inventory
-						prod_item := e.production.type
-						glyph := PRODUCTION_TEMPLATES[prod_item].glyph
-						plot_tile(screen_tile, white, black, glyph)
-					}
-				} else if e.building.type in is_workshop {
-					background := black
-					fg1 := white
-					fg2 := Color{1, 186.0/255, 0, 1}
+				case .Building: {
+					if e.building.type == .Tree {
+						visible, screen_tile := camera_xform(cam^, e.pos)
+						if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
+							plot_tile(screen_tile, white, black, .O)
+						}
+					} else if e.building.type == .PlacedProdItem {
+						visible, screen_tile := camera_xform(cam^, e.pos)
+						if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
+							// placed item is the first (and only) element in the inventory
+							prod_item := e.production.type
+							glyph := PRODUCTION_TEMPLATES[prod_item].glyph
+							plot_tile(screen_tile, white, black, glyph)
+						}
+					} else if e.building.type in is_workshop {
+						background := black
+						fg1 := white
+						fg2 := Color{1, 186.0/255, 0, 1}
 
-					if e.building.status == .PendingMaterialAssignment || e.building.status == .PendingConstruction {
-						alpha := 1-(e.building.deconstruction_percentage/2)
-						fg1 = change_lightness(fg1, alpha)
-						fg2 = change_lightness(fg2, alpha)
-					}
+						if e.building.status == .PendingMaterialAssignment || e.building.status == .PendingConstruction {
+							alpha := 1-(e.building.deconstruction_percentage/2)
+							fg1 = change_lightness(fg1, alpha)
+							fg2 = change_lightness(fg2, alpha)
+						}
 
-					offset := [9]V3i{{0,2,0},{1,2,0},{2,2,0},
+						offset := [9]V3i{{0,2,0},{1,2,0},{2,2,0},
 									 {0,1,0},{1,1,0},{2,1,0},
 									 {0,0,0},{1,0,0},{2,0,0}}
-					glyphs := B_PROTOS[e.building.type].glyphs
-					for o, i in offset {
-						tile := e.pos + o
-						fg := fg2 if o.xy == {2,2} else fg1
-						visible, screen_tile := camera_xform(cam^, tile)
-						if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
-							plot_tile(screen_tile, fg, background, glyphs[i])
+						glyphs := B_PROTOS[e.building.type].glyphs
+						for o, i in offset {
+							tile := e.pos + o
+							fg := fg2 if o.xy == {2,2} else fg1
+							visible, screen_tile := camera_xform(cam^, tile)
+							if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
+								plot_tile(screen_tile, fg, background, glyphs[i])
+							}
 						}
 					}
 				}
-			}
-			case .Production: {
-				if e.in_inventory_of == 0 && e.in_building == 0 {
-					visible, screen_tile := camera_xform(cam^, e.pos)
-					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
-						glyph := PRODUCTION_TEMPLATES[e.production.type].glyph
-						color := tree_brown
-						plot_tile(screen_tile, color, black, glyph)
-					}
-				}
-			}
-			case .Material: {
-				if e.in_inventory_of == 0 && e.in_building == 0 {
-					visible, screen_tile := camera_xform(cam^, e.pos)
-					if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
-						glyph := MATERIAL_TEMPLATES[e.material.type].glyph
-						plot_tile(screen_tile, white, black, glyph)
-					}
-				}
-			}
-			case .Stockpile: {
-				for x in 0..<e.dim.x {
-					for y in 0..<e.dim.y {
-						visible, screen_tile := camera_xform(cam^, e.pos+{x,y,0})
+				case .Production: {
+					if e.in_inventory_of == 0 && e.in_building == 0 {
+						visible, screen_tile := camera_xform(cam^, e.pos)
 						if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
-							plot_tile(screen_tile, white, black, .EQ)
+							glyph := PRODUCTION_TEMPLATES[e.production.type].glyph
+							color := tree_brown
+							plot_tile(screen_tile, color, black, glyph)
 						}
 					}
 				}
-			}
+				case .Material: {
+					if e.in_inventory_of == 0 && e.in_building == 0 {
+						visible, screen_tile := camera_xform(cam^, e.pos)
+						if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
+							glyph := MATERIAL_TEMPLATES[e.material.type].glyph
+							plot_tile(screen_tile, white, black, glyph)
+						}
+					}
+				}
+				case .Stockpile: {
+					for x in 0..<e.dim.x {
+						for y in 0..<e.dim.y {
+							visible, screen_tile := camera_xform(cam^, e.pos+{x,y,0})
+							if visible && !has_creature[screen_tile.x + (screen_tile.y * COLS)] {
+								plot_tile(screen_tile, white, black, .EQ)
+							}
+						}
+					}
+				}
 
 			}
 		}
 	}
 
-/**************
- * SEC: Menus *
- **************/
+	/**************
+ 	* SEC: Menus *
+ 	**************/
 
 	{
 		// NOTE: Maybe make this into a bitset
@@ -704,183 +725,183 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 			if !menu.visible do continue
 			rect := rect_adjust(element.rect, menu.rect.xy)
 			switch element.type {
-			case .Null: {}
-			case .Button: {
-				if do_button(id, input.mouse, rect, element.text, element.state == .Depressed) {
-					switch menu_name {
-					case .Null: {}
-					case .MainBar: {
-						if element.state == .None {
-							null_menu_state(menus)
-							element.state = .Depressed
-							state.interaction_mode = InteractionMode(id.element_idx+1)
-							if element.submenu != .Null {
-								switch element.submenu {
-								case .Null, .MainBar, .ConstructionSelector, .ProdItemConstructionSelector, .WorkshopConstructionSelector, .MaterialSelection, .EntityMenu, .AddWorkOrderMenu: {}
-								case .WorkOrderMenu: {
-									// TODO: fix leak
-									state.im_temp_entity_buffer = populate_order_menu(menus, order_queue)
+				case .Null: {}
+				case .Button: {
+					if do_button(id, input.mouse, rect, element.text, element.state == .Depressed) {
+						switch menu_name {
+							case .Null: {}
+							case .MainBar: {
+								if element.state == .None {
+									null_menu_state(menus)
+									element.state = .Depressed
+									state.interaction_mode = InteractionMode(id.element_idx+1)
+									if element.submenu != .Null {
+										switch element.submenu {
+											case .Null, .MainBar, .ConstructionSelector, .ProdItemConstructionSelector, .WorkshopConstructionSelector, .MaterialSelection, .EntityMenu, .AddWorkOrderMenu: {}
+											case .WorkOrderMenu: {
+												// TODO: fix leak
+												state.im_temp_entity_buffer = populate_order_menu(menus, order_queue)
+											}
+										}
+										menus.menus[element.submenu].visible = true
+									}
+								} else if element.state == .Depressed {
+									// Deactivate the related interaction mode
+									null_menu_state(menus)
+									state.interaction_mode = .Map
 								}
-								}
+							}
+							case .ConstructionSelector: {
+								menu.visible = false
 								menus.menus[element.submenu].visible = true
 							}
-						} else if element.state == .Depressed {
-							// Deactivate the related interaction mode
-							null_menu_state(menus)
-							state.interaction_mode = .Map
-						}
-					}
-					case .ConstructionSelector: {
-						menu.visible = false
-						menus.menus[element.submenu].visible = true
-					}
-					case .ProdItemConstructionSelector: {
-						if el_idx == len(menu.element_idx)-1 {
-							// CLOSE
-							state.interaction_mode = .Map
-							menu.visible = false
-							state.im_building_selection = .Null
-							// TODO: This resets the main bar. think I have a function for this now
-							for other_idx in 0..<len(menus.menus[.MainBar].element_idx) {
-								get_element_by_menu_idx(menus, .MainBar, other_idx).state = .None
-							}
-						} else {
-							if element.state == .Depressed {
-								state.im_building_selection = .Null
-								state.im_production_selection = .Null
-								element.state = .None
-							} else {
-								i := -1
-								c := -1
-								for btype in ProductionType {
-									if .Placeable in PRODUCTION_TEMPLATES[btype].attributes do i+=1
-									c += 1
-									if i == el_idx do break
+							case .ProdItemConstructionSelector: {
+								if el_idx == len(menu.element_idx)-1 {
+									// CLOSE
+									state.interaction_mode = .Map
+									menu.visible = false
+									state.im_building_selection = .Null
+									// TODO: This resets the main bar. think I have a function for this now
+									for other_idx in 0..<len(menus.menus[.MainBar].element_idx) {
+										get_element_by_menu_idx(menus, .MainBar, other_idx).state = .None
+									}
+								} else {
+									if element.state == .Depressed {
+										state.im_building_selection = .Null
+										state.im_production_selection = .Null
+										element.state = .None
+									} else {
+										i := -1
+										c := -1
+										for btype in ProductionType {
+											if .Placeable in PRODUCTION_TEMPLATES[btype].attributes do i+=1
+											c += 1
+											if i == el_idx do break
+										}
+										state.im_building_selection = .PlacedProdItem
+										state.im_production_selection = ProductionType(c)
+										menus.menus[.ProdItemConstructionSelector].visible = false
+										state.interaction_mode = .Build
+									}
 								}
-								state.im_building_selection = .PlacedProdItem
-								state.im_production_selection = ProductionType(c)
-								menus.menus[.ProdItemConstructionSelector].visible = false
-								state.interaction_mode = .Build
 							}
-						}
-					}
-					case .WorkshopConstructionSelector: {
-						if el_idx == len(menu.element_idx)-1 {
-							// CLOSE
-							state.interaction_mode = .Map
-							menu.visible = false
-							state.im_building_selection = .Null
-							for other_idx in 0..<len(menus.menus[.MainBar].element_idx) {
-								get_element_by_menu_idx(menus, .MainBar, other_idx).state = .None
-							}
-						} else {
-							if element.state == .Depressed {
-								state.im_building_selection = .Null
-								element.state = .None
-							} else {
-								i := -1
-								c := -1
-								for btype in BuildingType {
-									if btype in is_workshop do i+=1
-									c += 1
-									if i == el_idx do break
+							case .WorkshopConstructionSelector: {
+								if el_idx == len(menu.element_idx)-1 {
+									// CLOSE
+									state.interaction_mode = .Map
+									menu.visible = false
+									state.im_building_selection = .Null
+									for other_idx in 0..<len(menus.menus[.MainBar].element_idx) {
+										get_element_by_menu_idx(menus, .MainBar, other_idx).state = .None
+									}
+								} else {
+									if element.state == .Depressed {
+										state.im_building_selection = .Null
+										element.state = .None
+									} else {
+										i := -1
+										c := -1
+										for btype in BuildingType {
+											if btype in is_workshop do i+=1
+											c += 1
+											if i == el_idx do break
+										}
+										state.im_building_selection = BuildingType(c)
+										menus.menus[.WorkshopConstructionSelector].visible = false
+										state.interaction_mode = .Build
+									}
 								}
-								state.im_building_selection = BuildingType(c)
-								menus.menus[.WorkshopConstructionSelector].visible = false
-								state.interaction_mode = .Build
 							}
-						}
-					}
-					case .MaterialSelection: {
-						if el_idx == len(state.im_temp_entity_buffer) {
-							// cancel
-							delete	(state.im_temp_entity_buffer)
-							clear_menu(menus, .MaterialSelection)
-							state.interaction_mode = .Map
-							null_menu_state(menus)
-							remove_entity(entities, state.im_selected_entity_idx)
-							state.im_selected_entity_idx = 0
-						} else {
-							e_idx := state.im_selected_entity_idx
-							e := &entities[e_idx]
-							e.building.status = .PendingConstruction
-							mat_idx := state.im_temp_entity_buffer[el_idx]
-							// NOTE: Doesn't actually put the mat in the inv, just a 'placeholder'
-							// for indicating that the material needs to be fetched to construct the building.
-							// This is possible a silly idea
-							append(&e.inventory, mat_idx)
-							add_order(order_queue, .Construct, e.pos, e_idx)
-							delete(state.im_temp_entity_buffer)
-							clear_menu(menus, .MaterialSelection)
-							state.interaction_mode = .Map
-							null_menu_state(menus)
-						}
-					}
-					case .EntityMenu: {
-						if el_idx == len(menu.element_idx)-1 // Close is last element
-						{
-							state.interaction_mode = .Map
-							menu.visible = false
-						}
-						else if el_idx == len(menu.element_idx)-2 // deconstruct
-						{
-							b_idx := state.im_selected_entity_idx
-							// TODO: BUG this doesn't work, needs V3i to be set, apparently
-							add_order(order_queue, .Deconstruct, {0,0,0}, b_idx)
-							state.interaction_mode = .Map
-							menu.visible = false
-						}
-					}
-					case .WorkOrderMenu: {
-						if el_idx == 0 // cancel
-						{
-							state.interaction_mode = .Map
-							delete(state.im_temp_entity_buffer)
-							null_menu_state(menus)
-						} else if el_idx == len((menu.element_idx))-1 // last button is new
-						{
-							clear_menu(menus, .WorkOrderMenu)
-							menus.menus[.WorkOrderMenu].visible = false
-							populate_place_order_menu(menus)
-						} else if el_idx > 1 // 2nd element is a header label
-						{
-							// each 'row' has 5 elements: Type, Qty, Plus, Minus, Cancel
-							tmp_idx := (el_idx-2)/5
-							action := (el_idx-2)%5 - 2 // 0: add, 1: decrease, 2: cancel
-							order_idx := state.im_temp_entity_buffer[tmp_idx]
-							order := &order_queue.orders[order_idx]
-							if action == 0 {
-								order.target_count += 1
-							} else if action == 1 && order.target_count > 0 {
-								order.target_count -= 1
-							} else if action == 2 {
-								assigned_to := order.assigned_creature_idx
-								if assigned_to > 0 {
-									entities[assigned_to].creature.current_order_idx = 0
+							case .MaterialSelection: {
+								if el_idx == len(state.im_temp_entity_buffer) {
+									// cancel
+									delete	(state.im_temp_entity_buffer)
+									clear_menu(menus, .MaterialSelection)
+									state.interaction_mode = .Map
+									null_menu_state(menus)
+									remove_entity(entities, state.im_selected_entity_idx)
+									state.im_selected_entity_idx = 0
+								} else {
+									e_idx := state.im_selected_entity_idx
+									e := &entities[e_idx]
+									e.building.status = .PendingConstruction
+									mat_idx := state.im_temp_entity_buffer[el_idx]
+									// NOTE: Doesn't actually put the mat in the inv, just a 'placeholder'
+									// for indicating that the material needs to be fetched to construct the building.
+									// This is possible a silly idea
+									append(&e.inventory, mat_idx)
+									add_order(order_queue, .Construct, e.pos, e_idx)
+									delete(state.im_temp_entity_buffer)
+									clear_menu(menus, .MaterialSelection)
+									state.interaction_mode = .Map
+									null_menu_state(menus)
 								}
-								complete_order(order_queue, order_idx)
 							}
-							rebuild_work_order_menu = true
+							case .EntityMenu: {
+								if el_idx == len(menu.element_idx)-1 // Close is last element
+								{
+									state.interaction_mode = .Map
+									menu.visible = false
+								}
+								else if el_idx == len(menu.element_idx)-2 // deconstruct
+								{
+									b_idx := state.im_selected_entity_idx
+									// TODO: BUG this doesn't work, needs V3i to be set, apparently
+									add_order(order_queue, .Deconstruct, {0,0,0}, b_idx)
+									state.interaction_mode = .Map
+									menu.visible = false
+								}
+							}
+							case .WorkOrderMenu: {
+								if el_idx == 0 // cancel
+								{
+									state.interaction_mode = .Map
+									delete(state.im_temp_entity_buffer)
+									null_menu_state(menus)
+								} else if el_idx == len((menu.element_idx))-1 // last button is new
+								{
+									clear_menu(menus, .WorkOrderMenu)
+									menus.menus[.WorkOrderMenu].visible = false
+									populate_place_order_menu(menus)
+								} else if el_idx > 1 // 2nd element is a header label
+								{
+									// each 'row' has 5 elements: Type, Qty, Plus, Minus, Cancel
+									tmp_idx := (el_idx-2)/5
+									action := (el_idx-2)%5 - 2 // 0: add, 1: decrease, 2: cancel
+									order_idx := state.im_temp_entity_buffer[tmp_idx]
+									order := &order_queue.orders[order_idx]
+									if action == 0 {
+										order.target_count += 1
+									} else if action == 1 && order.target_count > 0 {
+										order.target_count -= 1
+									} else if action == 2 {
+										assigned_to := order.assigned_creature_idx
+										if assigned_to > 0 {
+											entities[assigned_to].creature.current_order_idx = 0
+										}
+										complete_order(order_queue, order_idx)
+									}
+									rebuild_work_order_menu = true
+								}
+							}
+							case .AddWorkOrderMenu: {
+								if el_idx == 0 // cancel
+								{
+									state.interaction_mode = .Map
+									null_menu_state(menus)
+								}  else if el_idx > 1 // 2nd element is a header label
+								{
+									add_order(order_queue, .Produce, idx = el_idx-2, count = 10)
+									menus.menus[.AddWorkOrderMenu].visible = false // NOTE: memory will be cleared up on next call to populate
+									rebuild_work_order_menu = true
+								}
+							}
 						}
-					}
-					case .AddWorkOrderMenu: {
-						if el_idx == 0 // cancel
-						{
-							state.interaction_mode = .Map
-							null_menu_state(menus)
-						}  else if el_idx > 1 // 2nd element is a header label
-						{
-							add_order(order_queue, .Produce, idx = el_idx-2, count = 10)
-							menus.menus[.AddWorkOrderMenu].visible = false // NOTE: memory will be cleared up on next call to populate
-							rebuild_work_order_menu = true
-						}
-					}
 					}
 				}
-			}
-			case .Text: {
-				do_text(id, rect, element.text)
-			}
+				case .Text: {
+					do_text(id, rect, element.text)
+				}
 			}
 		}
 
@@ -892,146 +913,146 @@ game_update :: proc(time_delta:f32, memory:^GameMemory, input:GameInput) -> bool
 		if hot == NULL_UIID {
 
 			switch state.interaction_mode {
-			case .EntityInteract, .Stockpile: {}
-			case .Map: {
-				// NOTE: Not sure if I want to do hover visibility just in normal map mode
-				/* plot_tile(flip(s.hovered_tile.xy), black, red, .BLANK) */
+				case .EntityInteract, .Stockpile: {}
+				case .Map: {
+					// NOTE: Not sure if I want to do hover visibility just in normal map mode
+					/* plot_tile(flip(s.hovered_tile.xy), black, red, .BLANK) */
 
-				/* SEC: Hover Tile */
-				tile := get_map_tile(mmap, state.hovered_tile)
-				entities_at_cursor := get_entities_at_pos(entities, state.hovered_tile)
-				y_start := 1
-				if tile.content.shape != .Wall || tile.exposed {
-					write_string_to_screen({0,y_start}, fmt.tprint(tile.content.made_of.type, tile.content.shape), white, black)
-					y_start += 1
-				}
+					/* SEC: Hover Tile */
+					tile := get_map_tile(mmap, state.hovered_tile)
+					entities_at_cursor := get_entities_at_pos(entities, state.hovered_tile)
+					y_start := 1
+					if tile.content.shape != .Wall || tile.exposed {
+						write_string_to_screen({0,y_start}, fmt.tprint(tile.content.made_of.type, tile.content.shape), white, black)
+						y_start += 1
+					}
 
-				for e, i in entities_at_cursor {
-					entity := entities[e]
-					str : string
-					switch entity.type {
-					case .Stockpile: {
-						str = fmt.tprint("Stockpile")
-					}
-					case .Null: {}
-					case .Creature: {
-						str = fmt.tprint(entity.creature.type, entity.creature.name)
-					}
-					case .Building: {
-						if entity.building.type == .PlacedProdItem {
-							prod_item := entity.production.type
-							str = fmt.tprint(prod_item, "(Placed)")
-						} else {
-							str = fmt.tprint(entity.building.type)
+					for e, i in entities_at_cursor {
+						entity := entities[e]
+						str : string
+						switch entity.type {
+							case .Stockpile: {
+								str = fmt.tprint("Stockpile")
+							}
+							case .Null: {}
+							case .Creature: {
+								str = fmt.tprint(entity.creature.type, entity.creature.name)
+							}
+							case .Building: {
+								if entity.building.type == .PlacedProdItem {
+									prod_item := entity.production.type
+									str = fmt.tprint(prod_item, "(Placed)")
+								} else {
+									str = fmt.tprint(entity.building.type)
+								}
+							}
+							case .Material: {
+								str = fmt.tprint(entity.material.type)
+							}
+							case .Production: {
+								str = fmt.tprint(entity.production.type)
+							}
 						}
+						write_string_to_screen({0, y_start+i}, str, yellow, black)
 					}
-					case .Material: {
-						str = fmt.tprint(entity.material.type)
-					}
-					case .Production: {
-						str = fmt.tprint(entity.production.type)
-					}
-					}
-					write_string_to_screen({0, y_start+i}, str, yellow, black)
-				}
 
-				if lmb {
-					if len(entities_at_cursor) > 0 {
-						eidx := entities_at_cursor[0]
-						state.im_selected_entity_idx = eidx
-						state.interaction_mode = .EntityInteract
-						populate_entity_menu(menus, entities[state.im_selected_entity_idx], entities[:])
-						menus.menus[.EntityMenu].visible = true
-					}
-				}
-			}
-			case .CutTrees: {
-				visible, screen_tile := camera_xform(cam^, state.hovered_tile)
-				if visible {
-					plot_tile(screen_tile, black, red, .BLANK)
-				}
-				if lmb {
-					es := get_entities_at_pos(entities, state.hovered_tile)
-					for e_i in es {
-						if entities[e_i].type == .Building {
-							add_order(order_queue, .CutTree, state.hovered_tile, e_i)
-						}
-					}
-				}
-			}
-			case .Mine: {
-				if !state.im_toggle {
 					if lmb {
-						state.im_toggle = true
-						state.im_ref_pos = state.hovered_tile
+						if len(entities_at_cursor) > 0 {
+							eidx := entities_at_cursor[0]
+							state.im_selected_entity_idx = eidx
+							state.interaction_mode = .EntityInteract
+							populate_entity_menu(menus, entities[state.im_selected_entity_idx], entities[:])
+							menus.menus[.EntityMenu].visible = true
+						}
 					}
+				}
+				case .CutTrees: {
 					visible, screen_tile := camera_xform(cam^, state.hovered_tile)
 					if visible {
 						plot_tile(screen_tile, black, red, .BLANK)
 					}
-				} else {
-					v_min := vec_min(state.im_ref_pos, state.hovered_tile)
-					v_max := vec_max(state.im_ref_pos, state.hovered_tile)
-					assert(v_min.z==v_max.z)
-					for x in v_min.x..=v_max.x {
-						for y in v_min.y..=v_max.y {
-							tile := get_map_tile(mmap, {x,y,v_min.z})
-							if tile.content.shape == .Wall {
-								if lmb do tile.order_idx = add_order(order_queue, .Mine, {x,y,v_min.z})
-								visible, screen_tile := camera_xform(cam^, {x,y,v_min.z})
+					if lmb {
+						es := get_entities_at_pos(entities, state.hovered_tile)
+						for e_i in es {
+							if entities[e_i].type == .Building {
+								add_order(order_queue, .CutTree, state.hovered_tile, e_i)
+							}
+						}
+					}
+				}
+				case .Mine: {
+					if !state.im_toggle {
+						if lmb {
+							state.im_toggle = true
+							state.im_ref_pos = state.hovered_tile
+						}
+						visible, screen_tile := camera_xform(cam^, state.hovered_tile)
+						if visible {
+							plot_tile(screen_tile, black, red, .BLANK)
+						}
+					} else {
+						v_min := vec_min(state.im_ref_pos, state.hovered_tile)
+						v_max := vec_max(state.im_ref_pos, state.hovered_tile)
+						assert(v_min.z==v_max.z)
+						for x in v_min.x..=v_max.x {
+							for y in v_min.y..=v_max.y {
+								tile := get_map_tile(mmap, {x,y,v_min.z})
+								if tile.content.shape == .Wall {
+									if lmb do tile.order_idx = add_order(order_queue, .Mine, {x,y,v_min.z})
+									visible, screen_tile := camera_xform(cam^, {x,y,v_min.z})
+									if visible {
+										plot_tile(screen_tile, black, red, .BLANK)
+									}
+								}
+							}
+						}
+						if lmb do state.im_toggle = false
+					}
+				}
+				case .Build: {
+					if state.im_building_selection != .Null {
+						e_def := B_PROTOS[state.im_building_selection]
+						for x in 0..<e_def.dims.x {
+							for y in 0..<e_def.dims.y {
+								tile := state.hovered_tile + {x,y,0}
+								visible, screen_tile := camera_xform(cam^, tile)
 								if visible {
-									plot_tile(screen_tile, black, red, .BLANK)
+									plot_tile(screen_tile, white, black, .X)
 								}
 							}
 						}
 					}
-					if lmb do state.im_toggle = false
-				}
-			}
-			case .Build: {
-				if state.im_building_selection != .Null {
-					e_def := B_PROTOS[state.im_building_selection]
-					for x in 0..<e_def.dims.x {
-						for y in 0..<e_def.dims.y {
-							tile := state.hovered_tile + {x,y,0}
-							visible, screen_tile := camera_xform(cam^, tile)
-							if visible {
-								plot_tile(screen_tile, white, black, .X)
+
+					if lmb {
+						if state.im_building_selection != .Null {
+							state.im_ref_pos = state.hovered_tile
+							idx := building_construction_request(entities, state.im_building_selection, state.hovered_tile)
+							state.im_selected_entity_idx = idx
+							if state.im_building_selection == .PlacedProdItem
+							{
+								types := bit_set[ProductionType]{state.im_production_selection}
+								state.im_temp_entity_buffer = get_production_items(entities[:], types)
+								entities[idx].production.type = state.im_production_selection
+								DBG(entities[idx].production)
 							}
+							else
+							{
+								state.im_temp_entity_buffer = get_construction_materials(entities[:])
+							}
+							populate_material_selector(menus, entities[:], state.im_temp_entity_buffer)
+							menus.menus[.MaterialSelection].visible = true
+							state.interaction_mode = .Map
 						}
+
 					}
 				}
-
-				if lmb {
-					if state.im_building_selection != .Null {
-						state.im_ref_pos = state.hovered_tile
-						idx := building_construction_request(entities, state.im_building_selection, state.hovered_tile)
-						state.im_selected_entity_idx = idx
-						if state.im_building_selection == .PlacedProdItem
-						{
-							types := bit_set[ProductionType]{state.im_production_selection}
-							state.im_temp_entity_buffer = get_production_items(entities[:], types)
-							entities[idx].production.type = state.im_production_selection
-							DBG(entities[idx].production)
-						}
-						else
-						{
-							state.im_temp_entity_buffer = get_construction_materials(entities[:])
-						}
-						populate_material_selector(menus, entities[:], state.im_temp_entity_buffer)
-						menus.menus[.MaterialSelection].visible = true
-						state.interaction_mode = .Map
-					}
-
-				}
-			}
 			}
 		}
 	}
 
-/*******************
- * SEC: Draw Debug *
- *******************/
+	/*******************
+ 	* SEC: Draw Debug *
+ 	*******************/
 
 	return true
 }

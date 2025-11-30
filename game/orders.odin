@@ -1,6 +1,6 @@
 package game
 
-OrderType :: enum { Null, Mine, CutTree, Construct, Deconstruct, Produce }
+OrderType :: enum { Null, Mine, CutTree, Construct, Deconstruct, Produce, HaulToStockpile }
 OrderStatus :: enum { Unassigned, Assigned, Completed, Suspended }
 
 Order :: struct {
@@ -8,6 +8,7 @@ Order :: struct {
 	status : OrderStatus,
 	pos : V3i,
 	target_idx: int,
+	source_idx: int,
 	target_count:int,
 	assigned_creature_idx : int,
 	creation_time:f32,
@@ -25,7 +26,15 @@ add_order :: proc(q:^OrderQueue, type:OrderType, pos:=V3i{}, idx:=0, count:=0) -
 	if type == .CutTree {
 		assert(idx != 0)
 	}
-	order := Order{type, .Unassigned, pos, idx, count, 0, 0.0}
+	order := Order{
+		type=type,
+		status=.Unassigned,
+		pos=pos,
+		target_idx=idx,
+		target_count=count,
+		assigned_creature_idx=0,
+		creation_time=0.0
+	}
 	existing, _ := get_order_at_position(q^, pos)
 
 	if existing > 0 {
